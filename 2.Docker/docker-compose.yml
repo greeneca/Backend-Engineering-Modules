@@ -1,0 +1,6 @@
+services:
+  wiki_stats:
+    image: wikistats
+    build: .
+    ports:
+      - "80:7000"
