@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"wiki_updates/configuration"
 	"wiki_updates/statstics"
 )
 
 
-func ConsumeWikipediaChanges(stats *statstics.Statstics) {
+func ConsumeWikipediaChanges(stats *statstics.Statstics, config configuration.Config) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://stream.wikimedia.org/v2/stream/recentchange", nil)
-	req.Header.Set("User-Agent", "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5")
+	req, err := http.NewRequest("GET", config.WikiAPIURL(), nil)
+	req.Header.Set("User-Agent", config.UserAgent())
 	req.Header.Set("Accept", "application/json")
 	rsp, err := client.Do(req)
 	if err != nil {

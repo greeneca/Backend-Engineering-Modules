@@ -2,16 +2,17 @@ package server
 
 import (
 	"net/http"
+	"wiki_updates/configuration"
 	"wiki_updates/statstics"
 
 	"github.com/gin-gonic/gin"
 )
 
 
-func Server(stats *statstics.Statstics) {
+func Server(stats *statstics.Statstics, config configuration.Config) {
 	router := gin.Default()
 	router.GET("/stats", getStatsHandler(stats))
-	router.Run(":7000")
+	router.Run(":" + config.ServerPort())
 }
 
 func getStatsHandler(stats *statstics.Statstics) gin.HandlerFunc {
