@@ -3,14 +3,14 @@ package main
 import (
 	"wiki_updates/configuration"
 	"wiki_updates/server"
-	"wiki_updates/statstics"
+	"wiki_updates/statistics"
 	"wiki_updates/wiki"
 )
 
 
 func main() {
 	config := configuration.GetConfig()
-	var stats = statstics.Statstics{
+	var stats = statistics.Statistics{
 		Messages: 0,
 		Urls:     make(map[string]bool),
 		Bots:     make(map[string]bool),

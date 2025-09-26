@@ -3,19 +3,19 @@ package server
 import(
 	"github.com/gin-gonic/gin"
 	"testing"
-	"wiki_updates/statstics"
+	"wiki_updates/statistics"
 )
 
 func Test_generateStatsJson(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		stats *statstics.Statstics
+		stats *statistics.Statistics
 		want  gin.H
 	}{
 		{
 			name: "Test empty stats",
-			stats: &statstics.Statstics{
+			stats: &statistics.Statistics{
 				Messages: 0,
 				Urls:     make(map[string]bool),
 				Bots:     make(map[string]bool),
@@ -30,7 +30,7 @@ func Test_generateStatsJson(t *testing.T) {
 			},
 		},{
 			name: "Test stats with messages and urls",
-			stats: &statstics.Statstics{
+			stats: &statistics.Statistics{
 				Messages: 5,
 				Urls: map[string]bool{
 					"https://en.wikipedia.org/wiki/Special:Diff/1234567890": true,

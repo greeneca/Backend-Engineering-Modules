@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"wiki_updates/configuration"
-	"wiki_updates/statstics"
+	"wiki_updates/statistics"
 )
 
 
-func ConsumeWikipediaChanges(stats *statstics.Statstics, config configuration.Config) {
+func ConsumeWikipediaChanges(stats *statistics.Statistics, config configuration.Config) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", config.WikiAPIURL(), nil)
 	req.Header.Set("User-Agent", config.UserAgent())
@@ -24,7 +24,7 @@ func ConsumeWikipediaChanges(stats *statstics.Statstics, config configuration.Co
 	processBody(reader, stats)
 }
 
-func processBody(reader *bufio.Reader, stats *statstics.Statstics) {
+func processBody(reader *bufio.Reader, stats *statistics.Statistics) {
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
@@ -38,7 +38,7 @@ func processBody(reader *bufio.Reader, stats *statstics.Statstics) {
 
 }
 
-func processLine(line string, stats *statstics.Statstics) {
+func processLine(line string, stats *statistics.Statistics) {
 	jsonData := make(map[string]any)
 	if err := json.Unmarshal([]byte(line), &jsonData); err != nil {
 		fmt.Println("Error unmarshalling JSON:", err, "line:", line)

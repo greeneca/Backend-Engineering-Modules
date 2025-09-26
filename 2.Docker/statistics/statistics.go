@@ -1,8 +1,8 @@
-package statstics
+package statistics
 
 import "sync"
 
-type Statstics struct {
+type Statistics struct {
 	sync.RWMutex
 	Messages int `json:"messages"`
 	Urls map[string]bool `json:"urls"`

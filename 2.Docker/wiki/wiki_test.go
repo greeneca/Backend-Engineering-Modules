@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"wiki_updates/statstics"
+	"wiki_updates/statistics"
 )
 
 func Test_processLine(t *testing.T) {
@@ -13,7 +13,7 @@ func Test_processLine(t *testing.T) {
 		name string // description of this test case
 		// Named input parameters for target function.
 		line string
-		stats  statstics.Statstics
+		stats  statistics.Statistics
 		messages int
 		Urls int
 		Bots int
@@ -22,7 +22,7 @@ func Test_processLine(t *testing.T) {
 		{
 			name: "Test empty data line",
 			line: "",
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 0,
 			Urls: 0,
 			Bots: 0,
@@ -30,7 +30,7 @@ func Test_processLine(t *testing.T) {
 		},{
 			name: "Test data line with message",
 			line: "{}",
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 1,
 			Urls: 0,
 			Bots: 0,
@@ -38,7 +38,7 @@ func Test_processLine(t *testing.T) {
 		},{
 			name: "Test data line with bot",
 			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1234567890"},"bot":true,"user":"BotUser"}`,
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 1,
 			Urls: 1,
 			Bots: 1,
@@ -46,7 +46,7 @@ func Test_processLine(t *testing.T) {
 		},{
 			name: "Test data line with non-bot",
 			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/0987654321"},"bot":false,"user":"NonBotUser"}`,
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 1,
 			Urls: 1,
 			Bots: 0,
@@ -54,7 +54,7 @@ func Test_processLine(t *testing.T) {
 		},{
 			name: "Test data line with uri",
 			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1122334455"}}`,
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 1,
 			Urls: 1,
 			Bots: 0,
@@ -85,18 +85,18 @@ func Test_processBody(t *testing.T) {
 		name string // description of this test case
 		// Named input parameters for target function.
 		reader *bufio.Reader
-		stats  statstics.Statstics
+		stats  statistics.Statistics
 		messages int
 	}{
 		{
 			name: "Test processBody with valid data",
 			reader: bufio.NewReader(strings.NewReader("{}")),
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 1,
 		},{
 			name: "Test processBody with multiple lines",
 			reader: bufio.NewReader(strings.NewReader("{}\n{}\n")),
-			stats: statstics.Statstics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
+			stats: statistics.Statistics{Messages: 0,Urls: make(map[string]bool), Bots: make(map[string]bool), NonBots: make(map[string]bool),},
 			messages: 2,
 		},
 	}
