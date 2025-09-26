@@ -11,6 +11,9 @@ import (
 
 func Server(stats *statistics.Statistics, config configuration.Config) {
 	router := gin.Default()
+	router.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/stats")
+	})
 	router.GET("/stats", getStatsHandler(stats))
 	router.Run(":" + config.ServerPort())
 }
