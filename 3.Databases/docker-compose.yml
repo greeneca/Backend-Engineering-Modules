@@ -1,0 +1,30 @@
+services:
+  wiki_updates:
+    image: wiki_updates
+    build: .
+    ports:
+      - "80:80"
+    depends_on:
+      database:
+          condition: service_healthy
+    networks:
+      - wiki
+
+  database:
+    image: cassandra:latest
+    container_name: database
+    environment:
+      - CASSANDRA_BROADCAST_ADDRESS=database
+    healthcheck:
+        test: ["CMD-SHELL", "nodetool status"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+    volumes:
+      - /Users/cgreene/Repositories/learning_modules/3.Databases/database-data:/var/lib/cassandra
+    networks:
+      - wiki
+
+networks:
+  wiki:
+    driver: bridge

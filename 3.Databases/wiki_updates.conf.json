@@ -1,0 +1,5 @@
+{
+    "serverPort": "80",
+    "dataStorage": "cassandra",
+    "debug" : true
+}
