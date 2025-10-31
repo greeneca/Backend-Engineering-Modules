@@ -1,25 +1,28 @@
 package server
 
-import(
-	"github.com/gin-gonic/gin"
+import (
 	"testing"
-	"wiki_updates/statistics"
+	"wiki_updates/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 func Test_generateStatsJson(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		stats *statistics.Statistics
+		statsFetcher func() *models.Statistics
 		want  gin.H
 	}{
 		{
 			name: "Test empty stats",
-			stats: &statistics.Statistics{
-				Messages: 0,
-				Urls:     make(map[string]bool),
-				Bots:     make(map[string]bool),
-				NonBots:  make(map[string]bool),
+			statsFetcher: func() *models.Statistics {
+				return &models.Statistics{
+					Messages: 0,
+					Urls:     0,
+					Bots:     0,
+					NonBots:  0,
+				}
 			},
 			want: gin.H{
 				"messages": 0,
@@ -30,18 +33,13 @@ func Test_generateStatsJson(t *testing.T) {
 			},
 		},{
 			name: "Test stats with messages and urls",
-			stats: &statistics.Statistics{
-				Messages: 5,
-				Urls: map[string]bool{
-					"https://en.wikipedia.org/wiki/Special:Diff/1234567890": true,
-					"https://en.wikipedia.org/wiki/Special:Diff/0987654321": true,
-				},
-				Bots: map[string]bool{
-					"BotUser": true,
-				},
-				NonBots: map[string]bool{
-					"NonBotUser": true,
-				},
+			statsFetcher: func() *models.Statistics {
+				return &models.Statistics{
+					Messages: 5,
+					Urls:     2,
+					Bots:     1,
+					NonBots:  1,
+				}
 			},
 			want: gin.H{
 				"messages": 5,
@@ -54,7 +52,7 @@ func Test_generateStatsJson(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, want := generateStatsJson(tt.stats), tt.want; got["messages"] != want["messages"] || got["urls"] != want["urls"] || got["users"] != want["users"] || got["bots"] != want["bots"] || got["non_bots"] != want["non_bots"] {
+			if got, want := generateStatsJson(tt.statsFetcher), tt.want; got["messages"] != want["messages"] || got["urls"] != want["urls"] || got["users"] != want["users"] || got["bots"] != want["bots"] || got["non_bots"] != want["non_bots"] {
 				t.Errorf("generateStatsJson() = %v, want %v", got, want)
 			}
 		})

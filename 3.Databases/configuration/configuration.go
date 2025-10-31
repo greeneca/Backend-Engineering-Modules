@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 )
 
@@ -15,6 +16,20 @@ type internalConfig struct {
 	ClusterHosts []string
 	Debug bool
 }
+
+func defaultConfig() Config {
+	config := Config{
+		serverPort: "7000",
+		wikiAPIURL: "https://stream.wikimedia.org/v2/stream/recentchange",
+		userAgent:  "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5",
+		dataStorage:    "memory", // or "cassandra"
+		clusterHosts: []string{"database"},
+		clusterKeyspace: "wiki_updates",
+		debug: false,
+	}
+	return config
+}
+
 
 func (c *Config) ServerPort() string {
 	return c.serverPort
@@ -39,28 +54,31 @@ func (c *Config) Debug() bool {
 }
 
 func GetConfig() Config {
-	file, err := os.Open("wiki_updates.conf.json")
+	internalConfig := loadConfigFromFile("wiki_updates.conf.json")
+	config := defaultConfig()
+	updateConfigWithInternalConfig(&config, internalConfig)
+	return config
+}
+
+func loadConfigFromFile(filename string) internalConfig {
+	file, err := os.Open(filename)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error opening config file, using default configuration. (%v)\n", err)
+		return internalConfig{}
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(file)
-	internalConfig := internalConfig{}
-	err = decoder.Decode(&internalConfig)
+	internalConf := internalConfig{}
+	err = decoder.Decode(&internalConf)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error decoding config file, using default configuration. (%v)\n", err)
+		return internalConfig{}
 	}
+	return internalConf
+}
 
+func updateConfigWithInternalConfig(config *Config, internalConfig internalConfig) {
 	// Set default values
-	config := Config{
-		serverPort: "7000",
-		wikiAPIURL: "https://stream.wikimedia.org/v2/stream/recentchange",
-		userAgent:  "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5",
-		dataStorage:    "memory", // or "cassandra"
-		clusterHosts: []string{"database"},
-		clusterKeyspace: "wiki_updates",
-		debug: false,
-	}
 	if internalConfig.ServerPort != "" {
 		config.serverPort = internalConfig.ServerPort
 	}
@@ -84,8 +102,6 @@ func GetConfig() Config {
 	if internalConfig.Debug {
 		config.debug = internalConfig.Debug
 	}
-
-	return config
 }
 
 

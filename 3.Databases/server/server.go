@@ -20,18 +20,21 @@ func Server(config configuration.Config, channel *chan models.Message) {
 }
 
 func getStatsHandler(channel *chan models.Message) gin.HandlerFunc {
+	statsFetcher := func() *models.Statistics {
+		*channel <- models.Message{
+			Type: "get_stats",
+		}
+		msg := <-*channel
+		return msg.Statistics
+	}
 	fn := func(c *gin.Context) {
-		c.JSON(http.StatusOK, generateStatsJson(channel))
+		c.JSON(http.StatusOK, generateStatsJson(statsFetcher))
 	}
 	return fn
 }
 
-func generateStatsJson(channel *chan models.Message) gin.H {
-	*channel <- models.Message{
-		Type: "get_stats",
-	}
-	msg := <-*channel
-	stats := msg.Statistics
+func generateStatsJson(statsFetcher func() *models.Statistics) gin.H {
+	stats := statsFetcher()
 	fmt.Println("Generating stats JSON:", stats.Messages)
 	return gin.H{
 		"messages": stats.Messages,

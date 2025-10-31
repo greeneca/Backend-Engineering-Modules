@@ -1,0 +1,9 @@
+{
+    "serverPort": "9000",
+    "wikiAPIUrl": "https://custom.url/stream",
+    "userAgent": "CustomAgent/2.0",
+    "dataStorage": "cassandra",
+    "clusterHosts": ["custom_host1", "custom_host2"],
+    "clusterKeyspace": "custom_keyspace",
+    "debug": true
+}
