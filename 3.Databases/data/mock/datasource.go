@@ -50,6 +50,21 @@ func (mr *MockDataSourceMockRecorder) GetStatistics() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatistics", reflect.TypeOf((*MockDataSource)(nil).GetStatistics))
 }
 
+// GetUserByEmail mocks base method.
+func (m *MockDataSource) GetUserByEmail(arg0 string) (*models.User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserByEmail", arg0)
+	ret0, _ := ret[0].(*models.User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserByEmail indicates an expected call of GetUserByEmail.
+func (mr *MockDataSourceMockRecorder) GetUserByEmail(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserByEmail", reflect.TypeOf((*MockDataSource)(nil).GetUserByEmail), arg0)
+}
+
 // Initialize mocks base method.
 func (m *MockDataSource) Initialize(arg0 configuration.Config) {
 	m.ctrl.T.Helper()
@@ -74,4 +89,18 @@ func (m *MockDataSource) SaveUpdate(arg0 models.Update) error {
 func (mr *MockDataSourceMockRecorder) SaveUpdate(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveUpdate", reflect.TypeOf((*MockDataSource)(nil).SaveUpdate), arg0)
+}
+
+// SaveUser mocks base method.
+func (m *MockDataSource) SaveUser(arg0 *models.User) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveUser", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveUser indicates an expected call of SaveUser.
+func (mr *MockDataSourceMockRecorder) SaveUser(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveUser", reflect.TypeOf((*MockDataSource)(nil).SaveUser), arg0)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_createTables(t *testing.T) {
+func Test_Cassandra_createTables(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	tests := []struct {
@@ -50,7 +50,7 @@ func Test_createTables(t *testing.T) {
 	}
 }
 
-func Test_SaveUpdate(t *testing.T) {
+func Test_Cassandra_SaveUpdate(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := []struct {
 		name string
@@ -109,7 +109,7 @@ func Test_SaveUpdate(t *testing.T) {
 	}
 }
 
-func Test_GetStatistics(t *testing.T) {
+func Test_Cassandra_GetStatistics(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := []struct {
 		name string
@@ -203,4 +203,12 @@ func Test_GetStatistics(t *testing.T) {
 			assert.Equal(t, tt.expected, *stats)
 		})
 	}
+}
+
+func Test_Cassandra_SaveUser(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	session := mock_stores.NewMockSessionInterface(ctrl)
+	db := &Cassandra{session: session}
+	err := db.SaveUser(&models.User{})
+	assert.NoError(t, err)
 }

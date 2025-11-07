@@ -43,8 +43,7 @@ func createTables(session stores.SessionInterface) {
 	CREATE TABLE IF NOT EXISTS users (
 		id UUID PRIMARY KEY,
 		email TEXT,
-		password_hash TEXT,
-		created_at TIMESTAMP
+		password_hash TEXT
 	)`
 	if err := session.Query(query).Exec(); err != nil {
 		panic(err)
@@ -129,4 +128,18 @@ func (db *Cassandra) GetStatistics() (*models.Statistics, error) {
 		fmt.Println("Error querying non-bot statistics:", err)
 	}
 	return &stats, nil
+}
+
+func (db *Cassandra) SaveUser(*models.User) error {
+	return nil
+}
+
+func (db *Cassandra) GetUserByEmail(string) (*models.User, error) {
+	user := &models.User{}
+	query := `SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1`
+	if err := db.session.Query(query).Scan(&user.Id, &user.Email, &user.PasswordHash); err != nil {
+		fmt.Println("Error querying user by email:", err)
+		return nil, err
+	}
+	return user, nil
 }

@@ -89,6 +89,20 @@ func (mr *MockConfigMockRecorder) Debug() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Debug", reflect.TypeOf((*MockConfig)(nil).Debug))
 }
 
+// JWTSecret mocks base method.
+func (m *MockConfig) JWTSecret() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "JWTSecret")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// JWTSecret indicates an expected call of JWTSecret.
+func (mr *MockConfigMockRecorder) JWTSecret() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JWTSecret", reflect.TypeOf((*MockConfig)(nil).JWTSecret))
+}
+
 // ServerPort mocks base method.
 func (m *MockConfig) ServerPort() string {
 	m.ctrl.T.Helper()

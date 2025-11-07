@@ -12,6 +12,8 @@ type DataSource interface {
 	Initialize(configuration.Config)
 	SaveUpdate(models.Update) error
 	GetStatistics() (*models.Statistics, error)
+	SaveUser(*models.User) error
+	GetUserByEmail(string) (*models.User, error)
 }
 
 func DataController(config configuration.Config, wiki_chan *chan models.Message, server_chan *chan models.Message) {

@@ -40,7 +40,7 @@ func Test_inMemoryData_SaveUpdate(t *testing.T) {
 			if tt.update.Bot {
 				if len(im.bots) != 1 {
 					t.Errorf("inMemoryData.Statistics.Bots = %d, want %d", len(im.bots), 1)
-				}
+}
 			} else {
 				if len(im.nonBots) != 1 {
 					t.Errorf("inMemoryData.Statistics.NonBots = %d, want %d", len(im.nonBots), 1)
@@ -114,5 +114,26 @@ func Test_inMemoryData_GetStatistics(t *testing.T) {
 				t.Errorf("inMemoryData.GetStatistics() = %v, want %v", *stats, tt.expected)
 			}
 		})
+	}
+}
+
+func Test_inMemoryData_SaveAndGetUser(t *testing.T) {
+	user := &models.User{
+		Id:    1,
+		Email: "test@test.com",
+		Password: "password",
+	}
+	im := &InMemory{}
+	im.Initialize(nil)
+	err := im.SaveUser(user)
+	if err != nil {
+		t.Errorf("inMemoryData.SaveUser() error = %v, wantErr %v", err, false)
+	}
+	retrievedUser, err := im.GetUserByEmail(user.Email)
+	if err != nil {
+		t.Errorf("inMemoryData.GetUserByEmail() error = %v, wantErr %v", err, false)
+	}
+	if *retrievedUser != *user {
+		t.Errorf("inMemoryData.GetUserByEmail() = %v, want %v", *retrievedUser, *user)
 	}
 }

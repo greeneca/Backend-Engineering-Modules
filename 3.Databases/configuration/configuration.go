@@ -15,16 +15,17 @@ type Config interface {
 	DataStorage() string
 	ClusterHosts() []string
 	ClusterKeyspace() string
+	JWTSecret() string
 	Debug() bool
 }
 
 type Configuration struct {
-	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace string
+	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace, jwtSecret string
 	clusterHosts []string
 	debug bool
 }
 type internalConfig struct {
-	ServerPort, WikiAPIURL, UserAgent, DataStorage, ClusterKeyspace string
+	ServerPort, WikiAPIURL, UserAgent, DataStorage, ClusterKeyspace, JWTSecret string
 	ClusterHosts []string
 	Debug bool
 }
@@ -37,6 +38,7 @@ func defaultConfig() Configuration {
 		dataStorage:    "memory", // or "cassandra"
 		clusterHosts: []string{"database"},
 		clusterKeyspace: "wiki_updates",
+		jwtSecret: "supersecretkey",
 		debug: false,
 	}
 	return config
@@ -60,6 +62,9 @@ func (c *Configuration) ClusterHosts() []string {
 }
 func (c *Configuration) ClusterKeyspace() string {
 	return c.clusterKeyspace
+}
+func (c *Configuration) JWTSecret() string {
+	return c.jwtSecret
 }
 func (c *Configuration) Debug() bool {
 	return c.debug
@@ -110,6 +115,9 @@ func updateConfigWithInternalConfig(config *Configuration, internalConfig intern
 	}
 	if internalConfig.ClusterKeyspace != "" {
 		config.clusterKeyspace = internalConfig.ClusterKeyspace
+	}
+	if internalConfig.JWTSecret != "" {
+		config.jwtSecret = internalConfig.JWTSecret
 	}
 	if internalConfig.Debug {
 		config.debug = internalConfig.Debug

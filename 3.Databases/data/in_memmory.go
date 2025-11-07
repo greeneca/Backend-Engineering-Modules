@@ -7,12 +7,13 @@ import (
 
 type InMemory struct {
 	statistics models.Statistics
-	urls 	map[string]bool
-	bots 	map[string]bool
-	nonBots map[string]bool
+	urls       map[string]bool
+	bots       map[string]bool
+	nonBots    map[string]bool
+	users      map[string]*models.User
 }
 
-func (im *InMemory) Initialize(config configuration.Config) {
+func (im *InMemory) Initialize(_ configuration.Config) {
 	im.urls = make(map[string]bool)
 	im.bots = make(map[string]bool)
 	im.nonBots = make(map[string]bool)
@@ -22,6 +23,7 @@ func (im *InMemory) Initialize(config configuration.Config) {
 		Bots:     0,
 		NonBots:  0,
 	}
+	im.users = make(map[string]*models.User)
 }
 
 func (im *InMemory) SaveUpdate(update models.Update) error {
@@ -41,3 +43,13 @@ func (im *InMemory) GetStatistics() (*models.Statistics, error) {
 	im.statistics.NonBots = len(im.nonBots)
 	return &im.statistics, nil
 }
+
+func (im *InMemory) GetUserByEmail(email string) (*models.User, error) {
+	return im.users[email], nil
+}
+
+func (im *InMemory) SaveUser(user *models.User) error {
+	im.users[user.Email] = user
+	return nil
+}
+
