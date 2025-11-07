@@ -1,15 +1,17 @@
 package data
 
+
 import (
 	"fmt"
 	"wiki_updates/configuration"
+	"wiki_updates/data/stores"
 	"wiki_updates/models"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )
 
 type Cassandra struct {
-	Session *gocql.Session
+	session stores.SessionInterface
 	stats models.Statistics
 }
 
@@ -24,9 +26,9 @@ func (db *Cassandra) Initialize(config configuration.Config){
 		fmt.Println("Error creating Cassandra session:", err)
 		panic(err)
 	}
-	db.Session = session
+	db.session = stores.NewSession(session)
 
-	createTables(session)
+	createTables(db.session)
 
 	db.stats = models.Statistics{
 		Messages: 0,
@@ -36,7 +38,7 @@ func (db *Cassandra) Initialize(config configuration.Config){
 	}
 }
 
-func createTables(session *gocql.Session) {
+func createTables(session stores.SessionInterface) {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
 		id UUID PRIMARY KEY,
@@ -79,29 +81,29 @@ func createTables(session *gocql.Session) {
 
 func (db *Cassandra) SaveUpdate(update models.Update) error {
 	query := `INSERT INTO wiki_users (id, user, bot) VALUES (uuid(), ?, ?) IF NOT EXISTS`
-	if err := db.Session.Query(query, update.User, update.Bot).Exec(); err != nil {
+	if err := db.session.Query(query, update.User, update.Bot).Exec(); err != nil {
 		fmt.Println("Error inserting wiki_user:", err)
 		return err
 	}
 	query = `SELECT id FROM wiki_users WHERE user = ? AND bot = ? LIMIT 1`
 	var userID gocql.UUID
-	if err := db.Session.Query(query, update.User, update.Bot).Scan(&userID); err != nil {
+	if err := db.session.Query(query, update.User, update.Bot).Scan(&userID); err != nil {
 		fmt.Println("Error querying wiki_users:", err)
 		return err
 	}
 	query = `INSERT INTO uris (id, uri) VALUES (uuid(), ?) IF NOT EXISTS`
-	if err := db.Session.Query(query, update.Uri).Exec(); err != nil {
+	if err := db.session.Query(query, update.Uri).Exec(); err != nil {
 		fmt.Println("Error inserting URI:", err)
 		return err
 	}
 	var uriID gocql.UUID
 	query = `SELECT id FROM uris WHERE uri = ? LIMIT 1`
-	if err := db.Session.Query(query, update.Uri).Scan(&uriID); err != nil {
+	if err := db.session.Query(query, update.Uri).Scan(&uriID); err != nil {
 		fmt.Println("Error querying URIs:", err)
 		return err
 	}
 	query = `INSERT INTO updates (id, uri_id, user_id) VALUES (uuid(), ?, ?)`
-	if err := db.Session.Query(query, uriID, userID).Exec(); err != nil {
+	if err := db.session.Query(query, uriID, userID).Exec(); err != nil {
 		fmt.Println("Error inserting update:", err)
 		return err
 	}
@@ -111,19 +113,19 @@ func (db *Cassandra) SaveUpdate(update models.Update) error {
 func (db *Cassandra) GetStatistics() (*models.Statistics, error) {
 	stats := db.stats
 	query := `SELECT COUNT(*) FROM updates`
-	if err := db.Session.Query(query).Scan(&stats.Messages); err != nil {
+	if err := db.session.Query(query).Scan(&stats.Messages); err != nil {
 		fmt.Println("Error querying updates:", err)
 	}
 	query = `SELECT COUNT(*) FROM uris`
-	if err := db.Session.Query(query).Scan(&stats.Urls); err != nil {
+	if err := db.session.Query(query).Scan(&stats.Urls); err != nil {
 		fmt.Println("Error querying statistics:", err)
 	}
 	query = `SELECT COUNT(*) FROM wiki_users WHERE bot = true`
-	if err := db.Session.Query(query).Scan(&stats.Bots); err != nil {
+	if err := db.session.Query(query).Scan(&stats.Bots); err != nil {
 		fmt.Println("Error querying bot statistics:", err)
 	}
 	query = `SELECT COUNT(*) FROM wiki_users WHERE bot = false`
-	if err := db.Session.Query(query).Scan(&stats.NonBots); err != nil {
+	if err := db.session.Query(query).Scan(&stats.NonBots); err != nil {
 		fmt.Println("Error querying non-bot statistics:", err)
 	}
 	return &stats, nil

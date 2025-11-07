@@ -1,12 +1,24 @@
 package configuration
 
+//go:generate mockgen -source=configuration.go -destination=mock/configuration.go
+
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 )
 
-type Config struct {
+type Config interface {
+	ServerPort() string
+	WikiAPIURL() string
+	UserAgent() string
+	DataStorage() string
+	ClusterHosts() []string
+	ClusterKeyspace() string
+	Debug() bool
+}
+
+type Configuration struct {
 	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace string
 	clusterHosts []string
 	debug bool
@@ -17,8 +29,8 @@ type internalConfig struct {
 	Debug bool
 }
 
-func defaultConfig() Config {
-	config := Config{
+func defaultConfig() Configuration {
+	config := Configuration{
 		serverPort: "7000",
 		wikiAPIURL: "https://stream.wikimedia.org/v2/stream/recentchange",
 		userAgent:  "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5",
@@ -31,29 +43,29 @@ func defaultConfig() Config {
 }
 
 
-func (c *Config) ServerPort() string {
+func (c *Configuration) ServerPort() string {
 	return c.serverPort
 }
-func (c *Config) WikiAPIURL() string {
+func (c *Configuration) WikiAPIURL() string {
 	return c.wikiAPIURL
 }
-func (c *Config) UserAgent() string {
+func (c *Configuration) UserAgent() string {
 	return c.userAgent
 }
-func (c *Config) DataStorage() string {
+func (c *Configuration) DataStorage() string {
 	return c.dataStorage
 }
-func (c *Config) ClusterHosts() []string {
+func (c *Configuration) ClusterHosts() []string {
 	return c.clusterHosts
 }
-func (c *Config) ClusterKeyspace() string {
+func (c *Configuration) ClusterKeyspace() string {
 	return c.clusterKeyspace
 }
-func (c *Config) Debug() bool {
+func (c *Configuration) Debug() bool {
 	return c.debug
 }
 
-func GetConfig() Config {
+func GetConfig() Configuration {
 	internalConfig := loadConfigFromFile("wiki_updates.conf.json")
 	config := defaultConfig()
 	updateConfigWithInternalConfig(&config, internalConfig)
@@ -77,7 +89,7 @@ func loadConfigFromFile(filename string) internalConfig {
 	return internalConf
 }
 
-func updateConfigWithInternalConfig(config *Config, internalConfig internalConfig) {
+func updateConfigWithInternalConfig(config *Configuration, internalConfig internalConfig) {
 	// Set default values
 	if internalConfig.ServerPort != "" {
 		config.serverPort = internalConfig.ServerPort

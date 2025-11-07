@@ -13,6 +13,9 @@ type InMemory struct {
 }
 
 func (im *InMemory) Initialize(config configuration.Config) {
+	im.urls = make(map[string]bool)
+	im.bots = make(map[string]bool)
+	im.nonBots = make(map[string]bool)
 	im.statistics = models.Statistics{
 		Messages: 0,
 		Urls:     0,

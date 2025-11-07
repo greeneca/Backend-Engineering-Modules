@@ -8,7 +8,7 @@ import (
 func Test_updateConfigWithInternalConfig(t *testing.T) {
 	tests := []struct {
 		name string
-		want Config
+		want Configuration
 		internalConfig internalConfig
 	}{
 		{
@@ -22,7 +22,7 @@ func Test_updateConfigWithInternalConfig(t *testing.T) {
 				ClusterKeyspace: "test_keyspace",
 				Debug: true,
 			},
-			want: Config{
+			want: Configuration{
 				serverPort: "8000",
 				wikiAPIURL: "https://test.url.com/stream",
 				userAgent: "TestAgent/1.0",
@@ -38,7 +38,7 @@ func Test_updateConfigWithInternalConfig(t *testing.T) {
 				ServerPort: "8000",
 				Debug: true,
 			},
-			want: Config{
+			want: Configuration{
 				serverPort: "8000",
 				wikiAPIURL: "https://stream.wikimedia.org/v2/stream/recentchange",
 				userAgent:  "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5",

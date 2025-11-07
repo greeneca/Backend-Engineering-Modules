@@ -1,5 +1,7 @@
 package data
 
+//go:generate mockgen -source=controller.go -destination=mock/datasource.go
+
 import (
 	"fmt"
 	"wiki_updates/configuration"
@@ -13,17 +15,23 @@ type DataSource interface {
 }
 
 func DataController(config configuration.Config, wiki_chan *chan models.Message, server_chan *chan models.Message) {
+	dataSource := getDataSource(config)
+	dataSource.Initialize(config)
+	monitorChannels(wiki_chan, server_chan, dataSource)
+}
+func getDataSource(config configuration.Config) DataSource {
 	var dataSource DataSource
 	if config.DataStorage() == "cassandra" {
 		fmt.Println("Using Cassandra as data source")
 		dataSource = &Cassandra{}
-		dataSource.Initialize(config)
 	} else {
 		// Fallback to in-memory or other data source
 		fmt.Println("Using In-Memory as data source")
 		dataSource = &InMemory{}
-		dataSource.Initialize(config)
 	}
+	return dataSource
+}
+func monitorChannels(wiki_chan *chan models.Message, server_chan *chan models.Message, dataSource DataSource) {
 	for {
 		select {
 		case msg := <-*server_chan:
