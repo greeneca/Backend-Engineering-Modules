@@ -205,10 +205,37 @@ func Test_Cassandra_GetStatistics(t *testing.T) {
 	}
 }
 
-func Test_Cassandra_SaveUser(t *testing.T) {
+func Test_Cassandra_GetUserByEmail(t *testing.T) {
+	email := "test@user.com"
 	ctrl := gomock.NewController(t)
 	session := mock_stores.NewMockSessionInterface(ctrl)
+	query := mock_stores.NewMockQueryInterface(ctrl)
 	db := &Cassandra{session: session}
-	err := db.SaveUser(&models.User{})
+	session.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT email, password_hash FROM users .*`), email).Return(query).Times(1)
+	query.EXPECT().Scan(gomock.Any(), gomock.Any()).DoAndReturn(func(dest ...*string) error {
+		*dest[0] = email
+		*dest[1] = "hashed_password"
+		return nil
+	}).Times(1)
+	user,  err := db.GetUserByEmail(email)
+	assert.NoError(t, err)
+	assert.Equal(t, email, user.Email)
+	assert.Equal(t, "hashed_password", user.PasswordHash)
+}
+
+func Test_Cassandra_SaveUser(t *testing.T) {
+	test_user := &models.User{
+		Email: "test@user.com",
+		PasswordHash: "hashed_password",
+	}
+	ctrl := gomock.NewController(t)
+	session := mock_stores.NewMockSessionInterface(ctrl)
+	query := mock_stores.NewMockQueryInterface(ctrl)
+	db := &Cassandra{session: session}
+	session.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT email, password_hash FROM users .*`), test_user.Email) .Return(query).Times(1)
+	query.EXPECT().Scan(gomock.Any(), gomock.Any()).Return(assert.AnError).Times(1)
+	session.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO users .*`), gomock.Any(), gomock.Any()).Return(query).Times(1)
+	query.EXPECT().Exec().Return(nil).Times(1)
+	err := db.SaveUser(test_user)
 	assert.NoError(t, err)
 }

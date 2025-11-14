@@ -119,7 +119,6 @@ func Test_inMemoryData_GetStatistics(t *testing.T) {
 
 func Test_inMemoryData_SaveAndGetUser(t *testing.T) {
 	user := &models.User{
-		Id:    1,
 		Email: "test@test.com",
 		Password: "password",
 	}

@@ -1,6 +1,5 @@
 package data
 
-
 import (
 	"fmt"
 	"wiki_updates/configuration"
@@ -41,8 +40,7 @@ func (db *Cassandra) Initialize(config configuration.Config){
 func createTables(session stores.SessionInterface) {
 	query := `
 	CREATE TABLE IF NOT EXISTS users (
-		id UUID PRIMARY KEY,
-		email TEXT,
+		email TEXT PRIMARY KEY,
 		password_hash TEXT
 	)`
 	if err := session.Query(query).Exec(); err != nil {
@@ -130,14 +128,23 @@ func (db *Cassandra) GetStatistics() (*models.Statistics, error) {
 	return &stats, nil
 }
 
-func (db *Cassandra) SaveUser(*models.User) error {
+func (db *Cassandra) SaveUser(user *models.User) error {
+	storedUser, err := db.GetUserByEmail(user.Email)
+	if err == nil && storedUser != nil {
+		return fmt.Errorf("user with email %s already exists", user.Email)
+	}
+	query := `INSERT INTO users (email, password_hash) VALUES (?, ?)`
+	if err := db.session.Query(query, user.Email, user.PasswordHash).Exec(); err != nil {
+		fmt.Println("Error inserting user:", err)
+		return err
+	}
 	return nil
 }
 
-func (db *Cassandra) GetUserByEmail(string) (*models.User, error) {
+func (db *Cassandra) GetUserByEmail(email string) (*models.User, error) {
 	user := &models.User{}
-	query := `SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1`
-	if err := db.session.Query(query).Scan(&user.Id, &user.Email, &user.PasswordHash); err != nil {
+	query := `SELECT email, password_hash FROM users WHERE email = ? LIMIT 1`
+	if err := db.session.Query(query, email).Scan(&user.Email, &user.PasswordHash); err != nil {
 		fmt.Println("Error querying user by email:", err)
 		return nil, err
 	}

@@ -12,6 +12,7 @@ COPY configuration ./configuration
 COPY data ./data
 COPY models ./models
 COPY server ./server
+COPY utils ./utils
 COPY wiki ./wiki
 
 ENV CGO_ENABLED=0

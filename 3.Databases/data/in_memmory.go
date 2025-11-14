@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"wiki_updates/configuration"
 	"wiki_updates/models"
 )
@@ -45,6 +46,9 @@ func (im *InMemory) GetStatistics() (*models.Statistics, error) {
 }
 
 func (im *InMemory) GetUserByEmail(email string) (*models.User, error) {
+	if _, exists := im.users[email]; !exists {
+		return nil, errors.New("user not found")
+	}
 	return im.users[email], nil
 }
 

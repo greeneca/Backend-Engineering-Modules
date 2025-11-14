@@ -47,6 +47,25 @@ func monitorChannels(wiki_chan *chan models.Message, server_chan *chan models.Me
 					Type:       "stats_response",
 					Statistics: stats,
 				}
+			} else if msg.Type == "save_user" {
+				err := dataSource.SaveUser(&msg.User)
+				*server_chan <- models.Message{
+					Type:  "save_user_response",
+					Error: err,
+				}
+			} else if msg.Type == "get_user" {
+				user, err := dataSource.GetUserByEmail(msg.User.Email)
+				if err != nil {
+					*server_chan <- models.Message{
+						Type:  "get_user_response",
+						Error: err,
+					}
+				} else {
+					*server_chan <- models.Message{
+						Type: "get_user_response",
+						User: *user,
+					}
+				}
 			}
 		case msg := <-*wiki_chan:
 			if msg.Type == "save_data" {
