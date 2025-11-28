@@ -5,8 +5,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      database:
-          condition: service_healthy
+      database-init:
+        condition: service_completed_successfully
     networks:
       - wiki
 
@@ -21,7 +21,19 @@ services:
         timeout: 10s
         retries: 5
     volumes:
-      - /Users/cgreene/Repositories/learning_modules/3.Databases/database-data:/var/lib/cassandra
+      - ./database-data:/var/lib/cassandra
+    networks:
+      - wiki
+
+  database-init:
+    image: cassandra:latest
+    depends_on:
+      database:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/init.sh", "database"]
+    volumes:
+      - ./data/scripts/init.sh:/init.sh
     networks:
       - wiki
 

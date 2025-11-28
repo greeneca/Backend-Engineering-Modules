@@ -1,13 +1,18 @@
 package data
 
 import (
+	"context"
+	"path/filepath"
 	"testing"
+	mock_configuration "wiki_updates/configuration/mock"
 	mock_stores "wiki_updates/data/stores/mock"
 	"wiki_updates/models"
 	"wiki_updates/test_utils"
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/cassandra"
 )
 
 func Test_Cassandra_createTables(t *testing.T) {
@@ -87,7 +92,7 @@ func Test_Cassandra_SaveUpdate(t *testing.T) {
 				Bot:  true,
 			},
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .*`), "BotUser", true).Return(q)
+m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .*`), "BotUser", true).Return(q)
 				q.EXPECT().Exec().Return(assert.AnError)
 			},
 			errorExpected: true,
@@ -238,4 +243,59 @@ func Test_Cassandra_SaveUser(t *testing.T) {
 	query.EXPECT().Exec().Return(nil).Times(1)
 	err := db.SaveUser(test_user)
 	assert.NoError(t, err)
+}
+
+func TestIntegration_Cassendra(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode")
+	}
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+	cassandraContainer, err := cassandra.Run(
+		ctx,
+		"cassandra:latest",
+		cassandra.WithInitScripts(filepath.Join("scripts", "init.sh")),
+		testcontainers.WithEnv(map[string]string{"CASSANDRA_BROADCAST_ADDRESS": "localhost"}),
+	)
+	assert.NoError(t, err)
+	//defer testcontainers.TerminateContainer(cassandraContainer)
+
+	endpoint, err := cassandraContainer.Endpoint(ctx, "")
+	println("Cassandra endpoint:", endpoint)
+	assert.NoError(t, err)
+	config := mock_configuration.NewMockConfig(ctrl)
+	config.EXPECT().ClusterHosts().Return([]string{endpoint}).AnyTimes()
+	config.EXPECT().Debug().Return(false).AnyTimes()
+	config.EXPECT().ClusterKeyspace().Return("wiki_updates").AnyTimes()
+	db := Cassandra{}
+	db.Initialize(config)
+
+	// Test SaveUpdate
+	update := models.Update{
+		Uri:  "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
+		Bot:  true,
+		User: "IntegrationTestBot",
+	}
+	err = db.SaveUpdate(update)
+	assert.NoError(t, err)
+
+	// Test GetStatistics
+	stats, err := db.GetStatistics()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, stats.Messages)
+	assert.Equal(t, 1, stats.Urls)
+	assert.Equal(t, 1, stats.Bots)
+	assert.Equal(t, 0, stats.NonBots)
+
+	// Test SaveUser and GetUserByEmail
+	test_user := &models.User{
+		Email: "test@user.com",
+		PasswordHash: "hashed_password",
+	}
+	err = db.SaveUser(test_user)
+	assert.NoError(t, err)
+	retrievedUser, err := db.GetUserByEmail(test_user.Email)
+	assert.NoError(t, err)
+	assert.Equal(t, test_user.Email, retrievedUser.Email)
+	assert.Equal(t, test_user.PasswordHash, retrievedUser.PasswordHash)
 }
