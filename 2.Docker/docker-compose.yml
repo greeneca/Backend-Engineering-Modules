@@ -1,6 +1,0 @@
-services:
-  wiki_updates:
-    image: wiki_updates
-    build: .
-    ports:
-      - "80:80"
