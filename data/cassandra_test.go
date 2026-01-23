@@ -261,7 +261,10 @@ func TestIntegration_Cassendra(t *testing.T) {
 	//defer testcontainers.TerminateContainer(cassandraContainer)
 
 	endpoint, err := cassandraContainer.Endpoint(ctx, "")
-	println("Cassandra endpoint:", endpoint)
+	if err != nil {
+		t.Fatal("Failed to get Cassandra endpoint:", err)
+	}
+	println("Cassandra endpoint: '", endpoint, "'")
 	assert.NoError(t, err)
 	config := mock_configuration.NewMockConfig(ctrl)
 	config.EXPECT().ClusterHosts().Return([]string{endpoint}).AnyTimes()

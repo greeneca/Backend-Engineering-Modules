@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  vet-check:
+  vet:
     runs-on: ubuntu-latest
 
     steps:
