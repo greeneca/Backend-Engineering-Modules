@@ -9,6 +9,9 @@ import (
 
 func Server(config configuration.Config, channel *chan models.Message) {
 	router := routes.SetupRouter(config, channel)
-	router.Run(":" + config.ServerPort())
+	err := router.Run(":" + config.ServerPort())
+	if err != nil {
+		panic("Failed to start server: " + err.Error())
+	}
 }
 

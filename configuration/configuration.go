@@ -83,7 +83,12 @@ func loadConfigFromFile(filename string) internalConfig {
 		fmt.Printf("Error opening config file, using default configuration. (%v)\n", err)
 		return internalConfig{}
 	}
-	defer file.Close()
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			fmt.Printf("Error closing config file. (%v)\n", err)
+		}
+	}()
 	decoder := json.NewDecoder(file)
 	internalConf := internalConfig{}
 	err = decoder.Decode(&internalConf)

@@ -13,13 +13,21 @@ import (
 func ConsumeWikipediaChanges(config configuration.Config, channel *chan models.Message) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", config.WikiAPIURL(), nil)
+	if err != nil {
+		panic(err)
+	}
 	req.Header.Set("User-Agent", config.UserAgent())
 	req.Header.Set("Accept", "application/json")
 	rsp, err := client.Do(req)
 	if err != nil {
 		panic(err)
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		err := rsp.Body.Close()
+		if err != nil {
+			fmt.Println("Error closing response body:", err)
+		}
+	}()
 	reader := bufio.NewReader(rsp.Body)
 	dataSaver := func(update models.Update) {
 		*channel <- models.Message{
