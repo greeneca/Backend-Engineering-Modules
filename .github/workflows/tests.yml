@@ -37,6 +37,7 @@ jobs:
 
       - name: Init Database
         run: |
+          sudo snap install cqlsh
           ./data/scripts/init.sh database
 
       - name: Run tests
