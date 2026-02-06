@@ -39,6 +39,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    services:
+      database:
+        image: cassandra:latest
+        ports:
+          - 9042:9042
+        options: >-
+          --health-cmd="nodetool status"
+          --health-interval=30s
+          --health-timeout=10s
+          --health-retries=5
+        env:
+          CASSANDRA_BROADCAST_ADDRESS: database
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
