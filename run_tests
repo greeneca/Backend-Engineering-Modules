@@ -1,0 +1,9 @@
+#! /bin/bash
+
+if [ $1 == "short" ]; then
+    echo "Running short tests"
+    go test -v --short ./...
+else
+    echo "Running full tests"
+    docker compose -f docker-compose-test.yml up wiki_updates-test --build
+fi

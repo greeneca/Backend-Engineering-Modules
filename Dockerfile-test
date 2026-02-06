@@ -1,0 +1,22 @@
+# Build stage
+FROM golang:1.25.1 AS builder
+
+WORKDIR /app
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+COPY main.go ./
+COPY configuration ./configuration
+COPY data ./data
+COPY models ./models
+COPY server ./server
+COPY utils ./utils
+COPY wiki ./wiki
+COPY test_utils ./test_utils
+
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+
+ENTRYPOINT ["go", "test", "-v", "./..."]

@@ -10,7 +10,7 @@ import (
 )
 
 
-func ConsumeWikipediaChanges(config configuration.Config, channel *chan models.Message) {
+func ConsumeWikipediaChanges(config configuration.Config, channel chan models.Message) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", config.WikiAPIURL(), nil)
 	if err != nil {
@@ -30,7 +30,7 @@ func ConsumeWikipediaChanges(config configuration.Config, channel *chan models.M
 	}()
 	reader := bufio.NewReader(rsp.Body)
 	dataSaver := func(update models.Update) {
-		*channel <- models.Message{
+		channel <- models.Message{
 			Type:   "save_data",
 			Update: update,
 		}

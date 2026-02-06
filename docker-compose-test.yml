@@ -1,0 +1,47 @@
+services:
+  wiki_updates-test:
+    image: wiki_updates
+    build:
+      context: .
+      dockerfile: ./Dockerfile-test
+    ports:
+      - "80:80"
+    depends_on:
+      database-test-init:
+        condition: service_completed_successfully
+    networks:
+      - wiki-test
+    links:
+      - "database-test:database"
+
+  database-test:
+    image: cassandra:latest
+    environment:
+      - CASSANDRA_BROADCAST_ADDRESS=database
+    healthcheck:
+        test: ["CMD-SHELL", "nodetool status"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+    networks:
+      wiki-test:
+        aliases:
+          - database
+
+  database-test-init:
+    image: cassandra:latest
+    depends_on:
+      database-test:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/test-init.sh", "database"]
+    volumes:
+      - ./data/scripts/test-init.sh:/test-init.sh
+    networks:
+      - wiki-test
+    links:
+      - "database-test:database"
+
+networks:
+  wiki-test:
+    driver: bridge

@@ -15,6 +15,6 @@ func main() {
 	server_chan := make(chan models.Message)
 	go data.DataController(&config, &wiki_chan, &server_chan)
 	go server.Server(&config, &server_chan)
-	wiki.ConsumeWikipediaChanges(&config, &wiki_chan)
+	wiki.ConsumeWikipediaChanges(&config, wiki_chan)
 }
 
