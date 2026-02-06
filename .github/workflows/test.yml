@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_call:
 
 jobs:
   test:
@@ -44,7 +45,6 @@ jobs:
 
       - name: Install cqlsh
         run: python3 -m pip install cqlsh
-
 
       - name: Install dependencies
         run: go mod download

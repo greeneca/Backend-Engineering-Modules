@@ -7,65 +7,11 @@ on:
 
 jobs:
   vet:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Run go vet
-        run: go vet ./...
-
+    uses: ./.github/workflows/vet.yml
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-
-      - name: Lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.6
+    uses: ./.github/workflows/lint.yml
   test:
-    runs-on: ubuntu-latest
-
-    services:
-      database:
-        image: cassandra:latest
-        ports:
-          - 9042:9042
-        options: >-
-          --health-cmd="nodetool status"
-          --health-interval=30s
-          --health-timeout=10s
-          --health-retries=5
-        env:
-          CASSANDRA_BROADCAST_ADDRESS: database
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test -v ./...
+    uses: ./.github/workflows/test.yml
 
   docker:
     runs-on: ubuntu-latest
@@ -85,4 +31,4 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/backend-engineering-modules:latest
+          tags: ${{ secryFMcHgCfe2ets.DOCKER_USERNAME }}/backend-engineering-modules:latest
