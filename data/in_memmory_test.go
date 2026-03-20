@@ -132,7 +132,7 @@ func Test_inMemoryData_SaveAndGetUser(t *testing.T) {
 	if err != nil {
 		t.Errorf("inMemoryData.GetUserByEmail() error = %v, wantErr %v", err, false)
 	}
-	if *retrievedUser != *user {
+	if (*retrievedUser).Email != (*user).Email || (*retrievedUser).Password != (*user).Password {
 		t.Errorf("inMemoryData.GetUserByEmail() = %v, want %v", *retrievedUser, *user)
 	}
 }

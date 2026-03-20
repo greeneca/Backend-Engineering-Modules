@@ -38,14 +38,14 @@ func (im *InMemory) SaveUpdate(update models.Update) error {
 	return nil
 }
 
-func (im *InMemory) GetStatistics() (*models.Statistics, error) {
+func (im InMemory) GetStatistics() (*models.Statistics, error) {
 	im.statistics.Urls = len(im.urls)
 	im.statistics.Bots = len(im.bots)
 	im.statistics.NonBots = len(im.nonBots)
 	return &im.statistics, nil
 }
 
-func (im *InMemory) GetUserByEmail(email string) (*models.User, error) {
+func (im InMemory) GetUserByEmail(email string) (*models.User, error) {
 	if _, exists := im.users[email]; !exists {
 		return nil, errors.New("user not found")
 	}

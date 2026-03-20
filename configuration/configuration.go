@@ -45,28 +45,28 @@ func defaultConfig() Configuration {
 }
 
 
-func (c *Configuration) ServerPort() string {
+func (c Configuration) ServerPort() string {
 	return c.serverPort
 }
-func (c *Configuration) WikiAPIURL() string {
+func (c Configuration) WikiAPIURL() string {
 	return c.wikiAPIURL
 }
-func (c *Configuration) UserAgent() string {
+func (c Configuration) UserAgent() string {
 	return c.userAgent
 }
-func (c *Configuration) DataStorage() string {
+func (c Configuration) DataStorage() string {
 	return c.dataStorage
 }
-func (c *Configuration) ClusterHosts() []string {
+func (c Configuration) ClusterHosts() []string {
 	return c.clusterHosts
 }
-func (c *Configuration) ClusterKeyspace() string {
+func (c Configuration) ClusterKeyspace() string {
 	return c.clusterKeyspace
 }
-func (c *Configuration) JWTSecret() string {
+func (c Configuration) JWTSecret() string {
 	return c.jwtSecret
 }
-func (c *Configuration) Debug() bool {
+func (c Configuration) Debug() bool {
 	return c.debug
 }
 
