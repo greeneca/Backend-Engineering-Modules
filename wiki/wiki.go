@@ -54,23 +54,13 @@ func processBody(reader *bufio.Reader, dataSaver func(models.Update)) {
 }
 
 func processLine(line string) models.Update {
-	jsonData := make(map[string]any)
-	if err := json.Unmarshal([]byte(line), &jsonData); err != nil {
+	update := models.Update{}
+	if err := json.Unmarshal([]byte(line), &update); err != nil {
 		fmt.Println("Error unmarshalling JSON:", err, "line:", line)
 		return models.Update{}
 	}
-	update := models.Update{}
-
-	if meta, ok := jsonData["meta"].(map[string]any); ok {
-		if uri, ok := meta["uri"].(string); ok {
-			update.Uri = uri
-		}
-		if bot, ok := jsonData["bot"].(bool); ok {
-			update.Bot = bot
-		}
-		if user, ok := jsonData["user"].(string); ok {
-			update.User = user
-		}
+	if update.Meta.Uri != "" {
+		update.Uri = update.Meta.Uri
 	}
 	return update
 }
