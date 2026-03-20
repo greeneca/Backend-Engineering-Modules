@@ -9,12 +9,12 @@ import (
 )
 
 
-func getStatsHandler(channel *chan models.Message) gin.HandlerFunc {
+func getStatsHandler(channel chan models.Message) gin.HandlerFunc {
 	statsFetcher := func() *models.Statistics {
-		*channel <- models.Message{
+		channel <- models.Message{
 			Type: "get_stats",
 		}
-		msg := <-*channel
+		msg := <-channel
 		return msg.Statistics
 	}
 	return func(c *gin.Context) {

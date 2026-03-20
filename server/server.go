@@ -7,7 +7,7 @@ import (
 )
 
 
-func Server(config configuration.Config, channel *chan models.Message) {
+func Server(config configuration.Config, channel chan models.Message) {
 	router := routes.SetupRouter(config, channel)
 	err := router.Run(":" + config.ServerPort())
 	if err != nil {

@@ -16,7 +16,7 @@ type DataSource interface {
 	GetUserByEmail(string) (*models.User, error)
 }
 
-func DataController(config configuration.Config, wiki_chan *chan models.Message, server_chan *chan models.Message) {
+func DataController(config configuration.Config, wiki_chan chan models.Message, server_chan chan models.Message) {
 	dataSource := getDataSource(config)
 	dataSource.Initialize(config)
 	monitorChannels(wiki_chan, server_chan, dataSource)
@@ -33,10 +33,10 @@ func getDataSource(config configuration.Config) DataSource {
 	}
 	return dataSource
 }
-func monitorChannels(wiki_chan *chan models.Message, server_chan *chan models.Message, dataSource DataSource) {
+func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Message, dataSource DataSource) {
 	for {
 		select {
-		case msg := <-*server_chan:
+		case msg := <-server_chan:
 			switch msg.Type {
 			case "get_stats":
 				stats, err := dataSource.GetStatistics()
@@ -44,31 +44,31 @@ func monitorChannels(wiki_chan *chan models.Message, server_chan *chan models.Me
 					fmt.Println("Error getting initial statistics:", err)
 					stats = &models.Statistics{}
 				}
-				*server_chan <- models.Message{
+				server_chan <- models.Message{
 					Type:       "stats_response",
 					Statistics: stats,
 				}
 			case "save_user":
 				err := dataSource.SaveUser(&msg.User)
-				*server_chan <- models.Message{
+				server_chan <- models.Message{
 					Type:  "save_user_response",
 					Error: err,
 				}
 			case "get_user":
 				user, err := dataSource.GetUserByEmail(msg.User.Email)
 				if err != nil {
-					*server_chan <- models.Message{
+					server_chan <- models.Message{
 						Type:  "get_user_response",
 						Error: err,
 					}
 				} else {
-					*server_chan <- models.Message{
+					server_chan <- models.Message{
 						Type: "get_user_response",
 						User: *user,
 					}
 				}
 			}
-		case msg := <-*wiki_chan:
+		case msg := <-wiki_chan:
 			if msg.Type == "save_data" {
 				err := dataSource.SaveUpdate(msg.Update)
 				if err != nil {

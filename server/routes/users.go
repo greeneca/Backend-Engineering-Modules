@@ -9,13 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func getSignupHandler(channel *chan models.Message) func(c *gin.Context) {
+func getSignupHandler(channel chan models.Message) func(c *gin.Context) {
 	userSaver := func(user models.User) error {
-		*channel <- models.Message{
+		channel <- models.Message{
 			Type: "save_user",
 			User: user,
 		}
-		msg := <-*channel
+		msg := <-channel
 		return msg.Error
 	}
 	return func(c *gin.Context) {
@@ -45,13 +45,13 @@ func signupUser(userSaver func(user models.User) error, c *gin.Context) {
 }
 
 
-func getLoginHandler(channel *chan models.Message, config configuration.Config) func(c *gin.Context) {
+func getLoginHandler(channel chan models.Message, config configuration.Config) func(c *gin.Context) {
 	userFetcher := func(email string) (models.User, error) {
-		*channel <- models.Message{
+		channel <- models.Message{
 			Type: "get_user",
 			User: models.User{Email: email},
 		}
-		msg := <-*channel
+		msg := <-channel
 		return msg.User, msg.Error
 	}
 	return func(c *gin.Context) {
