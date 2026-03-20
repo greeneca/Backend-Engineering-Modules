@@ -76,7 +76,7 @@ func Test_Controller_monitorChannels(t *testing.T) {
 			serverChan := make(chan models.Message)
 			dataSource := mock_data.NewMockDataSource(ctrl)
 			dataSource.EXPECT().GetStatistics().Return(tt.expected.Statistics, nil)
-			go monitorChannels(&wikiChan, &serverChan, dataSource)
+			go monitorChannels(wikiChan, serverChan, dataSource)
 			serverChan <- tt.input
 			got := <-serverChan
 			if got.Type != tt.expected.Type {
@@ -124,7 +124,7 @@ func Test_Controller_monitorChannels(t *testing.T) {
 				waitGroup.Done()
 				return nil
 			})
-			go monitorChannels(&wikiChan, &serverChan, dataSource)
+			go monitorChannels(wikiChan, serverChan, dataSource)
 			for _, input := range tt.inputs {
 				wikiChan <- input
 			}
