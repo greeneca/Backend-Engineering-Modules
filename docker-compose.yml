@@ -1,6 +1,8 @@
 services:
-  wiki_updates:
+  wiki:
     image: wiki_updates
+    container_name: wiki
+    pull_policy: build
     build: .
     ports:
       - "80:80"
