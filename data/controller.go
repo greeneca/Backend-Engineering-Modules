@@ -16,10 +16,11 @@ type DataSource interface {
 	GetUserByEmail(string) (*models.User, error)
 }
 
-func DataController(config configuration.Config, wiki_chan chan models.Message, server_chan chan models.Message) {
+func DataController(config configuration.Config, server_chan chan models.Message) {
 	dataSource := getDataSource(config)
 	dataSource.Initialize(config)
-	monitorChannels(wiki_chan, server_chan, dataSource)
+	go monitorChannel(server_chan, dataSource)
+	go monitorStream(config, dataSource)
 }
 func getDataSource(config configuration.Config) DataSource {
 	var dataSource DataSource
@@ -33,7 +34,7 @@ func getDataSource(config configuration.Config) DataSource {
 	}
 	return dataSource
 }
-func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Message, dataSource DataSource) {
+func monitorChannel(server_chan chan models.Message, dataSource DataSource) {
 	for {
 		select {
 		case msg := <-server_chan:
@@ -68,13 +69,18 @@ func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Mess
 					}
 				}
 			}
-		case msg := <-wiki_chan:
-			if msg.Type == "save_data" {
-				err := dataSource.SaveUpdate(msg.Update)
-				if err != nil {
-					fmt.Println("Error saving update:", err)
-				}
-			}
 		}
+	}
+}
+
+func monitorStream(config configuration.Config, dataSource DataSource) {
+	for {
+		streamer := GetDataStreamer(config)
+		streamer.Consume(func(update models.Update) {
+			err := dataSource.SaveUpdate(update)
+			if err != nil {
+				fmt.Println("Error saving update:", err)
+			}
+		})
 	}
 }

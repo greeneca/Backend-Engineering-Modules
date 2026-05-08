@@ -16,17 +16,20 @@ type Config interface {
 	ClusterHosts() []string
 	ClusterKeyspace() string
 	JWTSecret() string
+	KafkaBrokers() []string
+	KafkaTopic() string
+	KafkaConsumerGroup() string
 	Debug() bool
 }
 
 type Configuration struct {
-	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace, jwtSecret string
-	clusterHosts []string
+	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace, jwtSecret, kafkaTopic, kafkaConsumerGroup string
+	clusterHosts, kafkaBrokers []string
 	debug bool
 }
 type internalConfig struct {
-	ServerPort, WikiAPIURL, UserAgent, DataStorage, ClusterKeyspace, JWTSecret string
-	ClusterHosts []string
+	ServerPort, WikiAPIURL, UserAgent, DataStorage, ClusterKeyspace, JWTSecret, KafkaTopic, KafkaConsumerGroup string
+	ClusterHosts, KafkaBrokers []string
 	Debug bool
 }
 
@@ -39,6 +42,9 @@ func defaultConfig() Configuration {
 		clusterHosts: []string{"database"},
 		clusterKeyspace: "wiki_updates",
 		jwtSecret: "supersecretkey",
+		kafkaBrokers: []string{"redpanda-0:9092"},
+		kafkaTopic: "wiki_updates",
+		kafkaConsumerGroup: "wiki_updates_group",
 		debug: false,
 	}
 	return config
@@ -65,6 +71,15 @@ func (c Configuration) ClusterKeyspace() string {
 }
 func (c Configuration) JWTSecret() string {
 	return c.jwtSecret
+}
+func (c Configuration) KafkaBrokers() []string {
+	return c.kafkaBrokers
+}
+func (c Configuration) KafkaTopic() string {
+	return c.kafkaTopic
+}
+func (c Configuration) KafkaConsumerGroup() string {
+	return c.kafkaConsumerGroup
 }
 func (c Configuration) Debug() bool {
 	return c.debug
@@ -123,6 +138,15 @@ func updateConfigWithInternalConfig(config *Configuration, internalConfig intern
 	}
 	if internalConfig.JWTSecret != "" {
 		config.jwtSecret = internalConfig.JWTSecret
+	}
+	if len(internalConfig.KafkaBrokers) > 0 {
+		config.kafkaBrokers = internalConfig.KafkaBrokers
+	}
+	if internalConfig.KafkaTopic != "" {
+		config.kafkaTopic = internalConfig.KafkaTopic
+	}
+	if internalConfig.KafkaConsumerGroup != "" {
+		config.kafkaConsumerGroup = internalConfig.KafkaConsumerGroup
 	}
 	if internalConfig.Debug {
 		config.debug = internalConfig.Debug

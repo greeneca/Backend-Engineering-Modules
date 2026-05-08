@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 
 RUN go mod download
 
-COPY main.go ./
+COPY cmd ./cmd
 COPY configuration ./configuration
 COPY data ./data
 COPY models ./models
@@ -18,12 +18,12 @@ COPY wiki ./wiki
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-RUN go build -o wiki_updates
+RUN go build -o bin/consumer ./cmd/consumer/main.go
 
 # Runtime stage
 FROM gcr.io/distroless/base
 
-COPY --from=builder /app/wiki_updates /wiki_updates
+COPY --from=builder /app/bin/consumer /consumer
 COPY wiki_updates.conf.json /wiki_updates.conf.json
 
-ENTRYPOINT ["/wiki_updates"]
+ENTRYPOINT ["/consumer"]
