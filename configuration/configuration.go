@@ -38,7 +38,7 @@ func defaultConfig() Configuration {
 		dataStorage:    "memory", // or "cassandra"
 		clusterHosts: []string{"database"},
 		clusterKeyspace: "wiki_updates",
-		jwtSecret: "supersecretkey",
+		jwtSecret: "",
 		debug: false,
 	}
 	return config
@@ -70,11 +70,31 @@ func (c Configuration) Debug() bool {
 	return c.debug
 }
 
+const devJWTSecret = "insecure-development-secret"
+
 func GetConfig() Configuration {
 	internalConfig := loadConfigFromFile("wiki_updates.conf.json")
 	config := defaultConfig()
 	updateConfigWithInternalConfig(&config, internalConfig)
+	getJWTSecret(&config)
 	return config
+}
+
+func getJWTSecret(config *Configuration) {
+	if secret := os.Getenv("JWT_SECRET"); secret != "" {
+		config.jwtSecret = secret
+		return
+	}
+	if config.jwtSecret != "" {
+		fmt.Println("Warning: JWT secret loaded from config file; prefer the JWT_SECRET environment variable")
+		return
+	}
+	if config.debug {
+		fmt.Println("Warning: JWT_SECRET not set; using an insecure development secret. Do not use in production.")
+		config.jwtSecret = devJWTSecret
+		return
+	}
+	panic("JWT_SECRET environment variable is required when not running in debug mode")
 }
 
 func loadConfigFromFile(filename string) internalConfig {
