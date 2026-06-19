@@ -6,4 +6,5 @@ type Message struct {
 	Statistics	*Statistics
 	User	User
 	Error	error
+	Reply	chan Message
 }

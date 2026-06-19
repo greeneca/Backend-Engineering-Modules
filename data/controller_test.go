@@ -77,8 +77,10 @@ func Test_Controller_monitorChannels(t *testing.T) {
 			dataSource := mock_data.NewMockDataSource(ctrl)
 			dataSource.EXPECT().GetStatistics().Return(tt.expected.Statistics, nil)
 			go monitorChannels(wikiChan, serverChan, dataSource)
+			reply := make(chan models.Message)
+			tt.input.Reply = reply
 			serverChan <- tt.input
-			got := <-serverChan
+			got := <-reply
 			if got.Type != tt.expected.Type {
 				fmt.Printf("got: %+v\n", got)
 				fmt.Printf("expected: %+v\n", tt.expected)
