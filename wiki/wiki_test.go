@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 	"wiki_updates/models"
 )
 
@@ -85,17 +86,43 @@ func Test_processBody(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer func() {
-				if r := recover(); r != io.EOF {
-					t.Errorf("processBody() panicked with error: %v", r)
-				}
-			}()
 			dataSaver := func(update models.Update) {
 				tt.foundUpdates++
 			}
-			processBody(tt.reader, dataSaver)
+			if err := processBody(tt.reader, dataSaver); err != io.EOF {
+				t.Errorf("processBody() error = %v, want %v", err, io.EOF)
+			}
 			if got, want := tt.foundUpdates, tt.updates; got != want {
 				t.Errorf("processBody() Messages = %d, want %d", got, want)
+			}
+		})
+	}
+}
+
+func Test_nextDelay(t *testing.T) {
+	tests := []struct {
+		name    string
+		current time.Duration
+		want    time.Duration
+	}{
+		{
+			name:    "doubles below cap",
+			current: 1 * time.Second,
+			want:    2 * time.Second,
+		},{
+			name:    "doubles up to cap",
+			current: maxReconnectDelay / 2,
+			want:    maxReconnectDelay,
+		},{
+			name:    "stays at cap",
+			current: maxReconnectDelay,
+			want:    maxReconnectDelay,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := nextDelay(tt.current); got != tt.want {
+				t.Errorf("nextDelay(%s) = %s, want %s", tt.current, got, tt.want)
 			}
 		})
 	}
