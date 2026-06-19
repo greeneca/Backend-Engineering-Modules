@@ -9,91 +9,123 @@ import (
 	"wiki_updates/models"
 )
 
-func Test_processLine(t *testing.T) {
+func Test_parseUpdate(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
-		// Named input parameters for target function.
-		line string
-		Url string
-		Bot bool
+		data string
+		ok   bool
+		Url  string
+		Bot  bool
 		User string
 	}{
 		{
-			name: "Test empty data line",
-			line: "",
-			Url: "",
-			Bot: false,
-			User: "",
+			name: "Test empty data",
+			data: "",
+			ok:   false,
 		},{
-			name: "Test data line with message",
-			line: "{}",
-			Url: "",
-			Bot: false,
-			User: "",
+			name: "Test malformed data",
+			data: "not json",
+			ok:   false,
 		},{
-			name: "Test data line with bot",
-			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1234567890"},"bot":true,"user":"BotUser"}`,
-			Url: "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
-			Bot: true,
+			name: "Test empty object",
+			data: "{}",
+			ok:   true,
+			Url:  "",
+		},{
+			name: "Test data with bot",
+			data: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1234567890"},"bot":true,"user":"BotUser"}`,
+			ok:   true,
+			Url:  "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
+			Bot:  true,
 			User: "BotUser",
 		},{
-			name: "Test data line with non-bot",
-			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/0987654321"},"bot":false,"user":"NonBotUser"}`,
-			Url: "https://en.wikipedia.org/wiki/Special:Diff/0987654321",
-			Bot: false,
+			name: "Test data with non-bot",
+			data: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/0987654321"},"bot":false,"user":"NonBotUser"}`,
+			ok:   true,
+			Url:  "https://en.wikipedia.org/wiki/Special:Diff/0987654321",
+			Bot:  false,
 			User: "NonBotUser",
 		},{
-			name: "Test data line with uri",
-			line: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1122334455"}}`,
-			Url: "https://en.wikipedia.org/wiki/Special:Diff/1122334455",
-			Bot: false,
+			name: "Test data with uri",
+			data: `{"meta":{"uri":"https://en.wikipedia.org/wiki/Special:Diff/1122334455"}}`,
+			ok:   true,
+			Url:  "https://en.wikipedia.org/wiki/Special:Diff/1122334455",
+			Bot:  false,
 			User: "",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			update := processLine(tt.line)
+			update, ok := parseUpdate(tt.data)
+			if ok != tt.ok {
+				t.Fatalf("parseUpdate() ok = %t, want %t", ok, tt.ok)
+			}
+			if !ok {
+				return
+			}
 			if got, want := update.Uri, tt.Url; got != want {
-				t.Errorf("processBody() Url = %s, want %s", got, want)
+				t.Errorf("parseUpdate() Url = %s, want %s", got, want)
 			}
 			if got, want := update.Bot, tt.Bot; got != want {
-				t.Errorf("processBody() Bot = %t, want %t", got, want)
+				t.Errorf("parseUpdate() Bot = %t, want %t", got, want)
 			}
 			if got, want := update.User, tt.User; got != want {
-				t.Errorf("processBody() User = %s, want %s", got, want)
+				t.Errorf("parseUpdate() User = %s, want %s", got, want)
 			}
 		})
 	}
 }
 
 func Test_processBody(t *testing.T) {
+	valid := `{"meta":{"uri":"https://en.wikipedia.org/wiki/A"},"bot":true,"user":"Bot"}`
+	other := `{"meta":{"uri":"https://en.wikipedia.org/wiki/B"}}`
 	tests := []struct {
-		name string // description of this test case
-		// Named input parameters for target function.
-		reader *bufio.Reader
-		foundUpdates int
+		name    string // description of this test case
+		body    string
 		updates int
 	}{
 		{
-			name: "Test processBody with valid data",
-			reader: bufio.NewReader(strings.NewReader("{}")),
+			name:    "single event",
+			body:    "data: " + valid + "\n\n",
 			updates: 1,
 		},{
-			name: "Test processBody with multiple lines",
-			reader: bufio.NewReader(strings.NewReader("{}\n{}\n")),
+			name:    "multiple events",
+			body:    "data: " + valid + "\n\ndata: " + other + "\n\n",
 			updates: 2,
+		},{
+			name:    "comments and metadata fields ignored",
+			body:    ":ok\n\nevent: message\nid: 42\ndata: " + valid + "\n\n",
+			updates: 1,
+		},{
+			name:    "malformed data not saved",
+			body:    "data: not json\n\n",
+			updates: 0,
+		},{
+			name:    "empty object not saved",
+			body:    "data: {}\n\n",
+			updates: 0,
+		},{
+			name:    "unterminated event discarded",
+			body:    "data: " + valid,
+			updates: 0,
+		},{
+			name:    "multi-line data concatenated",
+			body:    "data: {\"meta\":{\"uri\":\"https://x/D\"},\ndata: \"bot\":true}\n\n",
+			updates: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			foundUpdates := 0
 			dataSaver := func(update models.Update) {
-				tt.foundUpdates++
+				foundUpdates++
 			}
-			if err := processBody(tt.reader, dataSaver); err != io.EOF {
+			reader := bufio.NewReader(strings.NewReader(tt.body))
+			if err := processBody(reader, dataSaver); err != io.EOF {
 				t.Errorf("processBody() error = %v, want %v", err, io.EOF)
 			}
-			if got, want := tt.foundUpdates, tt.updates; got != want {
-				t.Errorf("processBody() Messages = %d, want %d", got, want)
+			if got, want := foundUpdates, tt.updates; got != want {
+				t.Errorf("processBody() updates = %d, want %d", got, want)
 			}
 		})
 	}

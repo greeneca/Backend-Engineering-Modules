@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 	"wiki_updates/configuration"
 	"wiki_updates/models"
@@ -53,7 +54,7 @@ func streamChanges(config configuration.Config, dataSaver func(models.Update)) (
 		return false, err
 	}
 	req.Header.Set("User-Agent", config.UserAgent())
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
 	rsp, err := client.Do(req)
 	if err != nil {
 		return false, err
@@ -77,11 +78,24 @@ func streamChanges(config configuration.Config, dataSaver func(models.Update)) (
 }
 
 func processBody(reader *bufio.Reader, dataSaver func(models.Update)) error {
+	var data strings.Builder
 	for {
-		line, err := reader.ReadBytes('\n')
-		if len(line) > 0 {
-			update := processLine(string(line))
-			dataSaver(update)
+		line, err := reader.ReadString('\n')
+		trimmed := strings.TrimRight(line, "\r\n")
+		switch {
+		case trimmed == "":
+			dispatchEvent(&data, dataSaver)
+			data.Reset()
+		case strings.HasPrefix(trimmed, ":"):
+			// heartbeat line: ignore.
+		default:
+			if field, value := parseField(trimmed); field == "data" {
+				if data.Len() > 0 {
+					// Multiple data lines are joined with newlines per the spec.
+					data.WriteByte('\n')
+				}
+				data.WriteString(value)
+			}
 		}
 		if err != nil {
 			return err
@@ -89,14 +103,33 @@ func processBody(reader *bufio.Reader, dataSaver func(models.Update)) error {
 	}
 }
 
-func processLine(line string) models.Update {
+func parseField(line string) (string, string) {
+	field, value, found := strings.Cut(line, ":")
+	if !found {
+		return line, ""
+	}
+	return field, strings.TrimPrefix(value, " ")
+}
+
+func dispatchEvent(data *strings.Builder, dataSaver func(models.Update)) {
+	if data.Len() == 0 {
+		return
+	}
+	update, ok := parseUpdate(data.String())
+	if !ok || update.Uri == "" {
+		return
+	}
+	dataSaver(update)
+}
+
+func parseUpdate(data string) (models.Update, bool) {
 	update := models.Update{}
-	if err := json.Unmarshal([]byte(line), &update); err != nil {
-		fmt.Println("Error unmarshalling JSON:", err, "line:", line)
-		return models.Update{}
+	if err := json.Unmarshal([]byte(data), &update); err != nil {
+		fmt.Println("Error unmarshalling SSE data:", err, "data:", data)
+		return models.Update{}, false
 	}
 	if update.Meta.Uri != "" {
 		update.Uri = update.Meta.Uri
 	}
-	return update
+	return update, true
 }
