@@ -19,6 +19,10 @@ type QueryInterface interface {
 	Exec() error
 	Iter() IterInterface
 	Scan(...any) error
+	// MapScanCAS executes a lightweight transaction (a statement with an IF
+	// clause) and reports whether it was applied, scanning any existing row
+	// into dest when it was not.
+	MapScanCAS(map[string]any) (bool, error)
 }
 
 // IterInterface allows gomock mock of gocql.Iter
@@ -85,6 +89,11 @@ func (q *Query) Iter() IterInterface {
 // Scan wraps the query's Scan method
 func (q *Query) Scan(dest ...any) error {
 	return q.query.Scan(dest...)
+}
+
+// MapScanCAS wraps the query's MapScanCAS method
+func (q *Query) MapScanCAS(dest map[string]any) (bool, error) {
+	return q.query.MapScanCAS(dest)
 }
 
 // Scan is a wrapper for the iter's Scan method
