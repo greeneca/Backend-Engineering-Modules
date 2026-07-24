@@ -6,6 +6,7 @@ import (
 	"wiki_updates/models"
 	"wiki_updates/test_utils"
 
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,6 +53,11 @@ func Test_Cassandra_createTables(t *testing.T) {
 
 func Test_Cassandra_SaveUpdate(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	update := models.Update{
+		Uri:  "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
+		User: "BotUser",
+		Bot:  true,
+	}
 	tests := []struct {
 		name string
 		update models.Update
@@ -59,36 +65,52 @@ func Test_Cassandra_SaveUpdate(t *testing.T) {
 		errorExpected bool
 	}{
 		{
-			name: "Test SaveUpdate executes insert query",
-			update: models.Update{
-				Uri:  "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
-				User: "BotUser",
-				Bot:  true,
-			},
+			name:   "increments distinct counters for a new uri and user",
+			update: update,
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .*`), "BotUser", true).Return(q)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statMessages).Return(q)
 				q.EXPECT().Exec().Return(nil)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT id FROM wiki_users .*`), "BotUser", true).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(nil)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO uris .*`), "https://en.wikipedia.org/wiki/Special:Diff/1234567890").Return(q)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO uris .* IF NOT EXISTS`), update.Uri).Return(q)
+				q.EXPECT().MapScanCAS(gomock.Any()).Return(true, nil)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statUrls).Return(q)
 				q.EXPECT().Exec().Return(nil)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT id FROM uris .*`), gomock.Any()).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(nil)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO updates .*`), gomock.Any(), gomock.Any()).Return(q)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .* IF NOT EXISTS`), true, "BotUser").Return(q)
+				q.EXPECT().MapScanCAS(gomock.Any()).Return(true, nil)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statBots).Return(q)
 				q.EXPECT().Exec().Return(nil)
 			},
 			errorExpected: false,
 		},
 		{
-			name: "Test SaveUpdate returns error on insert wiki_user failure",
-			update: models.Update{
-				Uri:  "https://en.wikipedia.org/wiki/Special:Diff/1234567890",
-				User: "BotUser",
-				Bot:  true,
-			},
+			name:   "skips distinct counters when uri and user already exist",
+			update: update,
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .*`), "BotUser", true).Return(q)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statMessages).Return(q)
+				q.EXPECT().Exec().Return(nil)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO uris .* IF NOT EXISTS`), update.Uri).Return(q)
+				q.EXPECT().MapScanCAS(gomock.Any()).Return(false, nil)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .* IF NOT EXISTS`), true, "BotUser").Return(q)
+				q.EXPECT().MapScanCAS(gomock.Any()).Return(false, nil)
+			},
+			errorExpected: false,
+		},
+		{
+			name:   "returns error when message counter update fails",
+			update: update,
+			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statMessages).Return(q)
 				q.EXPECT().Exec().Return(assert.AnError)
+			},
+			errorExpected: true,
+		},
+		{
+			name:   "returns error when uri insert fails",
+			update: update,
+			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`UPDATE stats .*`), 1, statMessages).Return(q)
+				q.EXPECT().Exec().Return(nil)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO uris .* IF NOT EXISTS`), update.Uri).Return(q)
+				q.EXPECT().MapScanCAS(gomock.Any()).Return(false, assert.AnError)
 			},
 			errorExpected: true,
 		},
@@ -111,82 +133,44 @@ m.EXPECT().Query(test_utils.NewRegexMatcher(`INSERT INTO wiki_users .*`), "BotUs
 
 func Test_Cassandra_GetStatistics(t *testing.T) {
 	ctrl := gomock.NewController(t)
+	// expectStat sets up a counter point-read for the given name returning value.
+	expectStat := func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface, name string, value int) {
+		m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT value FROM stats WHERE name = \?`), name).Return(q)
+		q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
+			*arg = value
+			return nil
+		})
+	}
 	tests := []struct {
 		name string
 		expectations func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface)
 		expected models.Statistics
 	}{
 		{
-			name: "Test GetStatistics returns correct statistics",
+			name: "returns counter values",
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM updates`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
-					*arg = 100
-					return nil
-				})
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM uris`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
-					*arg = 50
-					return nil
-				})
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = true`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
-					*arg = 30
-					return nil
-				})
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = false`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
-					*arg = 70
-					return nil
-				})
+				expectStat(m, q, statMessages, 100)
+				expectStat(m, q, statUrls, 50)
+				expectStat(m, q, statBots, 30)
+				expectStat(m, q, statNonBots, 70)
 			},
-			expected: models.Statistics{
-				Messages: 100,
-				Urls:     50,
-				Bots:     30,
-				NonBots:  70,
-			},
+			expected: models.Statistics{Messages: 100, Urls: 50, Bots: 30, NonBots: 70},
 		},
 		{
-			name: "Test GetStatistics handles query errors gracefully",
+			name: "missing counters report zero",
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM updates`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM uris`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = true`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = false`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT value FROM stats WHERE name = \?`), gomock.Any()).Return(q).Times(4)
+				q.EXPECT().Scan(gomock.Any()).Return(gocql.ErrNotFound).Times(4)
 			},
-			expected: models.Statistics{
-				Messages: 0,
-				Urls:     0,
-				Bots:     0,
-				NonBots:  0,
-			},
+			expected: models.Statistics{},
 		},
 		{
-			name: "Test GetStatistics does not return early on errors",
+			name: "query errors report zero without failing",
 			expectations: func(m *mock_stores.MockSessionInterface, q *mock_stores.MockQueryInterface) {
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM updates`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM uris`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = true`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError)
-				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT COUNT\(\*\) FROM wiki_users WHERE bot = false`)).Return(q)
-				q.EXPECT().Scan(gomock.Any()).DoAndReturn(func(arg *int) error {
-					*arg = 70
-					return nil
-				})
+				m.EXPECT().Query(test_utils.NewRegexMatcher(`SELECT value FROM stats WHERE name = \?`), gomock.Any()).Return(q).Times(4)
+				q.EXPECT().Scan(gomock.Any()).Return(assert.AnError).Times(4)
 			},
-			expected: models.Statistics{
-				Messages: 0,
-				Urls:     0,
-				Bots:     0,
-				NonBots:  70,
-			},
+			expected: models.Statistics{},
 		},
 	}
 	for _, tt := range tests {
@@ -194,10 +178,7 @@ func Test_Cassandra_GetStatistics(t *testing.T) {
 			mockSession := mock_stores.NewMockSessionInterface(ctrl)
 			mock_query := mock_stores.NewMockQueryInterface(ctrl)
 			tt.expectations(mockSession, mock_query)
-			db := &Cassandra{
-				session: mockSession,
-				stats:   models.Statistics{},
-			}
+			db := &Cassandra{session: mockSession}
 			stats, err := db.GetStatistics()
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, *stats)
