@@ -47,7 +47,7 @@ func Test_updateConfigWithInternalConfig(t *testing.T) {
 				dataStorage:    "memory",
 				clusterHosts: []string{"database"},
 				clusterKeyspace: "wiki_updates",
-				jwtSecret: "supersecretkey",
+				jwtSecret: "",
 				debug: true,
 			},
 		},
@@ -61,6 +61,46 @@ func Test_updateConfigWithInternalConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getJWTSecret(t *testing.T) {
+	t.Run("env var takes precedence over config file", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "env_secret")
+		config := Configuration{jwtSecret: "file_secret", debug: false}
+		getJWTSecret(&config)
+		if config.jwtSecret != "env_secret" {
+			t.Errorf("jwtSecret = %q, want %q", config.jwtSecret, "env_secret")
+		}
+	})
+
+	t.Run("falls back to config file secret when env unset", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "")
+		config := Configuration{jwtSecret: "file_secret", debug: false}
+		getJWTSecret(&config)
+		if config.jwtSecret != "file_secret" {
+			t.Errorf("jwtSecret = %q, want %q", config.jwtSecret, "file_secret")
+		}
+	})
+
+	t.Run("uses dev secret in debug mode when nothing else set", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "")
+		config := Configuration{jwtSecret: "", debug: true}
+		getJWTSecret(&config)
+		if config.jwtSecret != devJWTSecret {
+			t.Errorf("jwtSecret = %q, want %q", config.jwtSecret, devJWTSecret)
+		}
+	})
+
+	t.Run("panics when no secret and not debug", func(t *testing.T) {
+		t.Setenv("JWT_SECRET", "")
+		config := Configuration{jwtSecret: "", debug: false}
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("getJWTSecret() did not panic with missing secret outside debug mode")
+			}
+		}()
+		getJWTSecret(&config)
+	})
 }
 
 func Test_defaultConfig(t *testing.T) {

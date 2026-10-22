@@ -11,11 +11,13 @@ import (
 
 func getSignupHandler(channel chan models.Message) func(c *gin.Context) {
 	userSaver := func(user models.User) error {
+		reply := make(chan models.Message)
 		channel <- models.Message{
-			Type: "save_user",
-			User: user,
+			Type:  "save_user",
+			User:  user,
+			Reply: reply,
 		}
-		msg := <-channel
+		msg := <-reply
 		return msg.Error
 	}
 	return func(c *gin.Context) {
@@ -47,11 +49,13 @@ func signupUser(userSaver func(user models.User) error, c *gin.Context) {
 
 func getLoginHandler(channel chan models.Message, config configuration.Config) func(c *gin.Context) {
 	userFetcher := func(email string) (models.User, error) {
+		reply := make(chan models.Message)
 		channel <- models.Message{
-			Type: "get_user",
-			User: models.User{Email: email},
+			Type:  "get_user",
+			User:  models.User{Email: email},
+			Reply: reply,
 		}
-		msg := <-channel
+		msg := <-reply
 		return msg.User, msg.Error
 	}
 	return func(c *gin.Context) {

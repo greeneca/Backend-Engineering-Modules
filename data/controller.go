@@ -33,6 +33,13 @@ func getDataSource(config configuration.Config) DataSource {
 	}
 	return dataSource
 }
+func reply(request models.Message, response models.Message) {
+	if request.Reply == nil {
+		return
+	}
+	request.Reply <- response
+}
+
 func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Message, dataSource DataSource) {
 	for {
 		select {
@@ -44,28 +51,28 @@ func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Mess
 					fmt.Println("Error getting initial statistics:", err)
 					stats = &models.Statistics{}
 				}
-				server_chan <- models.Message{
+				reply(msg, models.Message{
 					Type:       "stats_response",
 					Statistics: stats,
-				}
+				})
 			case "save_user":
 				err := dataSource.SaveUser(&msg.User)
-				server_chan <- models.Message{
+				reply(msg, models.Message{
 					Type:  "save_user_response",
 					Error: err,
-				}
+				})
 			case "get_user":
 				user, err := dataSource.GetUserByEmail(msg.User.Email)
 				if err != nil {
-					server_chan <- models.Message{
+					reply(msg, models.Message{
 						Type:  "get_user_response",
 						Error: err,
-					}
+					})
 				} else {
-					server_chan <- models.Message{
+					reply(msg, models.Message{
 						Type: "get_user_response",
 						User: *user,
-					}
+					})
 				}
 			}
 		case msg := <-wiki_chan:

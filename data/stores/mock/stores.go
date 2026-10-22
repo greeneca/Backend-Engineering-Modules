@@ -122,6 +122,21 @@ func (mr *MockQueryInterfaceMockRecorder) Iter() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Iter", reflect.TypeOf((*MockQueryInterface)(nil).Iter))
 }
 
+// MapScanCAS mocks base method.
+func (m *MockQueryInterface) MapScanCAS(arg0 map[string]any) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapScanCAS", arg0)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// MapScanCAS indicates an expected call of MapScanCAS.
+func (mr *MockQueryInterfaceMockRecorder) MapScanCAS(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapScanCAS", reflect.TypeOf((*MockQueryInterface)(nil).MapScanCAS), arg0)
+}
+
 // Scan mocks base method.
 func (m *MockQueryInterface) Scan(arg0 ...any) error {
 	m.ctrl.T.Helper()

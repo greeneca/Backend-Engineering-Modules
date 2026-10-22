@@ -1,12 +1,21 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"wiki_updates/configuration"
 	"wiki_updates/data/stores"
 	"wiki_updates/models"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
+)
+
+// Counter names tracked in the stats counter table.
+const (
+	statMessages = "messages"
+	statUrls     = "urls"
+	statBots     = "bots"
+	statNonBots  = "non_bots"
 )
 
 type Cassandra struct {
@@ -46,30 +55,31 @@ func createTables(session stores.SessionInterface) {
 	if err := session.Query(query).Exec(); err != nil {
 		panic(err)
 	}
+	// wiki_users holds one row per distinct (bot, user); the IF NOT EXISTS on
+	// insert lets us detect newly-seen users so distinct counts stay accurate.
 	query = `
 	CREATE TABLE IF NOT EXISTS wiki_users (
-		id UUID,
-		user TEXT,
 		bot BOOLEAN,
-		PRIMARY KEY ((bot), user, id)
+		user TEXT,
+		PRIMARY KEY ((bot), user)
 	)`
 	if err := session.Query(query).Exec(); err != nil {
 		panic(err)
 	}
+	// uris holds one row per distinct URI.
 	query = `
 	CREATE TABLE IF NOT EXISTS uris (
-		id UUID,
 		uri TEXT PRIMARY KEY
 	)`
 	if err := session.Query(query).Exec(); err != nil {
 		panic(err)
 	}
+	// stats keeps running counters so statistics are O(1) point reads instead
+	// of full-table COUNT(*) scans, which are a Cassandra anti-pattern.
 	query = `
-	CREATE TABLE IF NOT EXISTS updates (
-		id UUID,
-		uri_id UUID,
-		user_id UUID,
-		PRIMARY KEY ((user_id), uri_id, id)
+	CREATE TABLE IF NOT EXISTS stats (
+		name TEXT PRIMARY KEY,
+		value COUNTER
 	)`
 	if err := session.Query(query).Exec(); err != nil {
 		panic(err)
@@ -77,55 +87,76 @@ func createTables(session stores.SessionInterface) {
 }
 
 func (db *Cassandra) SaveUpdate(update models.Update) error {
-	query := `INSERT INTO wiki_users (id, user, bot) VALUES (uuid(), ?, ?) IF NOT EXISTS`
-	if err := db.session.Query(query, update.User, update.Bot).Exec(); err != nil {
-		fmt.Println("Error inserting wiki_user:", err)
+	// Every update is a message.
+	if err := db.incrementStat(statMessages, 1); err != nil {
 		return err
 	}
-	query = `SELECT id FROM wiki_users WHERE user = ? AND bot = ? LIMIT 1`
-	var userID gocql.UUID
-	if err := db.session.Query(query, update.User, update.Bot).Scan(&userID); err != nil {
-		fmt.Println("Error querying wiki_users:", err)
-		return err
-	}
-	query = `INSERT INTO uris (id, uri) VALUES (uuid(), ?) IF NOT EXISTS`
-	if err := db.session.Query(query, update.Uri).Exec(); err != nil {
+
+	// Count distinct URIs: only bump the counter when the URI is newly inserted.
+	uriApplied, err := db.session.Query(
+		`INSERT INTO uris (uri) VALUES (?) IF NOT EXISTS`, update.Uri,
+	).MapScanCAS(map[string]any{})
+	if err != nil {
 		fmt.Println("Error inserting URI:", err)
 		return err
 	}
-	var uriID gocql.UUID
-	query = `SELECT id FROM uris WHERE uri = ? LIMIT 1`
-	if err := db.session.Query(query, update.Uri).Scan(&uriID); err != nil {
-		fmt.Println("Error querying URIs:", err)
+	if uriApplied {
+		if err := db.incrementStat(statUrls, 1); err != nil {
+			return err
+		}
+	}
+
+	// Count distinct users split by bot/non-bot, again only on first sighting.
+	userApplied, err := db.session.Query(
+		`INSERT INTO wiki_users (bot, user) VALUES (?, ?) IF NOT EXISTS`, update.Bot, update.User,
+	).MapScanCAS(map[string]any{})
+	if err != nil {
+		fmt.Println("Error inserting wiki_user:", err)
 		return err
 	}
-	query = `INSERT INTO updates (id, uri_id, user_id) VALUES (uuid(), ?, ?)`
-	if err := db.session.Query(query, uriID, userID).Exec(); err != nil {
-		fmt.Println("Error inserting update:", err)
+	if userApplied {
+		stat := statNonBots
+		if update.Bot {
+			stat = statBots
+		}
+		if err := db.incrementStat(stat, 1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// incrementStat bumps a named counter in the stats table.
+func (db *Cassandra) incrementStat(name string, delta int) error {
+	query := `UPDATE stats SET value = value + ? WHERE name = ?`
+	if err := db.session.Query(query, delta, name).Exec(); err != nil {
+		fmt.Printf("Error incrementing %s counter: %v\n", name, err)
 		return err
 	}
 	return nil
 }
 
 func (db *Cassandra) GetStatistics() (*models.Statistics, error) {
-	stats := db.stats
-	query := `SELECT COUNT(*) FROM updates`
-	if err := db.session.Query(query).Scan(&stats.Messages); err != nil {
-		fmt.Println("Error querying updates:", err)
+	return &models.Statistics{
+		Messages: db.readStat(statMessages),
+		Urls:     db.readStat(statUrls),
+		Bots:     db.readStat(statBots),
+		NonBots:  db.readStat(statNonBots),
+	}, nil
+}
+
+// readStat returns a named counter's value via a point read. A missing row
+// simply means nothing has been counted yet, so it reports 0.
+func (db *Cassandra) readStat(name string) int {
+	var value int
+	query := `SELECT value FROM stats WHERE name = ?`
+	if err := db.session.Query(query, name).Scan(&value); err != nil {
+		if !errors.Is(err, gocql.ErrNotFound) {
+			fmt.Printf("Error reading %s counter: %v\n", name, err)
+		}
+		return 0
 	}
-	query = `SELECT COUNT(*) FROM uris`
-	if err := db.session.Query(query).Scan(&stats.Urls); err != nil {
-		fmt.Println("Error querying statistics:", err)
-	}
-	query = `SELECT COUNT(*) FROM wiki_users WHERE bot = true`
-	if err := db.session.Query(query).Scan(&stats.Bots); err != nil {
-		fmt.Println("Error querying bot statistics:", err)
-	}
-	query = `SELECT COUNT(*) FROM wiki_users WHERE bot = false`
-	if err := db.session.Query(query).Scan(&stats.NonBots); err != nil {
-		fmt.Println("Error querying non-bot statistics:", err)
-	}
-	return &stats, nil
+	return value
 }
 
 func (db *Cassandra) SaveUser(user *models.User) error {

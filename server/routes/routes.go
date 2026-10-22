@@ -26,11 +26,13 @@ func SetupRouter(config configuration.Config, channel chan models.Message) *gin.
 
 func getAuthMiddleware(config configuration.Config, channel chan models.Message) gin.HandlerFunc {
 	userFetcher := func(email string) (models.User, error) {
+		reply := make(chan models.Message)
 		channel <- models.Message{
-			Type: "get_user",
-			User: models.User{Email: email},
+			Type:  "get_user",
+			User:  models.User{Email: email},
+			Reply: reply,
 		}
-		msg := <-channel
+		msg := <-reply
 		return msg.User, msg.Error
 	}
 	return func(c *gin.Context) {
