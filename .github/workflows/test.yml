@@ -55,3 +55,34 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
+  redpanda-integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Start Redpanda
+        run: |
+          docker run -d --name redpanda-0 -p 19092:19092 \
+            docker.redpanda.com/redpandadata/redpanda:v24.2.2 \
+            redpanda start \
+            --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092 \
+            --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092 \
+            --mode dev-container --smp 1
+          for i in $(seq 1 30); do
+            docker exec redpanda-0 rpk cluster health && exit 0
+            sleep 2
+          done
+          docker logs redpanda-0
+          exit 1
+
+      - name: Run Redpanda tests
+        env:
+          REDPANDA_BROKERS: localhost:19092
+        run: go test -v ./data/ -run 'Redpanda'
