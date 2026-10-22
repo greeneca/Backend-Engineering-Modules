@@ -1,22 +1,83 @@
 services:
-  wiki:
-    image: wiki_updates
-    container_name: wiki
+  producer:
+    image: wiki_producer
+    container_name: producer
     pull_policy: build
-    build: .
+    build:
+      context: .
+      dockerfile: ./Dockerfile-producer
+    depends_on:
+      redpanda-0:
+        condition: service_healthy
+    networks:
+      - wiki
+
+  consumer:
+    image: wiki_consumer
+    container_name: consumer
+    pull_policy: build
+    build:
+      context: .
+      dockerfile: ./Dockerfile-consumer
     ports:
       - "80:80"
     environment:
       - JWT_SECRET=${JWT_SECRET}
     depends_on:
-      database-init:
-        condition: service_completed_successfully
+      redpanda-0:
+        condition: service_healthy
+    networks:
+      - wiki
+
+  redpanda-0:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.2
+    container_name: redpanda-0
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda-0:9092,external://localhost:19092
+      - --rpc-addr redpanda-0:33145
+      - --advertise-rpc-addr redpanda-0:33145
+      - --mode dev-container
+      - --smp 1
+      - --default-log-level=info
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - redpanda-0:/var/lib/redpanda/data
+    ports:
+      - "19092:19092"
+    networks:
+      - wiki
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.0
+    container_name: redpanda-console
+    entrypoint: /bin/sh
+    command: -c 'echo "$$CONSOLE_CONFIG_FILE" > /tmp/config.yml; /app/console'
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda-0:9092"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda-0:
+        condition: service_healthy
     networks:
       - wiki
 
   database:
     image: cassandra:latest
     container_name: database
+    profiles:
+      - cassandra
     environment:
       - CASSANDRA_BROADCAST_ADDRESS=database
     healthcheck:
@@ -31,6 +92,8 @@ services:
 
   database-init:
     image: cassandra:latest
+    profiles:
+      - cassandra
     depends_on:
       database:
         condition: service_healthy
@@ -40,6 +103,9 @@ services:
       - ./data/scripts/init.sh:/init.sh
     networks:
       - wiki
+
+volumes:
+  redpanda-0: null
 
 networks:
   wiki:

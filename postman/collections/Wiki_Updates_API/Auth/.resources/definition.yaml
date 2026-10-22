@@ -1,0 +1,3 @@
+$kind: collection
+name: Auth
+description: User registration and authentication endpoints.

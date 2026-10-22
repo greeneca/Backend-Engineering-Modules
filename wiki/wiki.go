@@ -16,16 +16,10 @@ const (
 	maxReconnectDelay     = 30 * time.Second
 )
 
-func ConsumeWikipediaChanges(config configuration.Config, channel chan models.Message) {
-	dataSaver := func(update models.Update) {
-		channel <- models.Message{
-			Type:   "save_data",
-			Update: update,
-		}
-	}
+func ConsumeWikipediaChanges(config configuration.Config, save func(models.Update)) {
 	delay := initialReconnectDelay
 	for {
-		received, err := streamChanges(config, dataSaver)
+		received, err := streamChanges(config, save)
 		if received {
 			delay = initialReconnectDelay
 		}

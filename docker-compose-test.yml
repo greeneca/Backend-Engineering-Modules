@@ -6,13 +6,39 @@ services:
       dockerfile: ./Dockerfile-test
     ports:
       - "80:80"
+    environment:
+      - REDPANDA_BROKERS=redpanda-0:9092
     depends_on:
       database-test-init:
         condition: service_completed_successfully
+      redpanda-test:
+        condition: service_healthy
     networks:
       - wiki-test
     links:
       - "database-test:database"
+
+  redpanda-test:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.2
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092
+      - --advertise-kafka-addr internal://redpanda-0:9092
+      - --rpc-addr redpanda-0:33145
+      - --advertise-rpc-addr redpanda-0:33145
+      - --mode dev-container
+      - --smp 1
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      wiki-test:
+        aliases:
+          - redpanda-0
 
   database-test:
     image: cassandra:latest

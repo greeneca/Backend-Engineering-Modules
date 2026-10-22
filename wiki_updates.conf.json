@@ -1,5 +1,5 @@
 {
     "serverPort": "80",
-    "dataStorage": "cassandra",
+    "dataStorage": "redpanda",
     "debug" : true
 }

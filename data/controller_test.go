@@ -34,6 +34,13 @@ func Test_Controller_getDataSource(t *testing.T) {
 			},
 			want: &Cassandra{},
 		},
+		{
+			name: "Test redpanda data source",
+			setExpectations: func(m *mock_configuration.MockConfig) {
+				m.EXPECT().DataStorage().Return("redpanda")
+			},
+			want: &Redpanda{},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

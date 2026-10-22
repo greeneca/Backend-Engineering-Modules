@@ -103,6 +103,62 @@ func (mr *MockConfigMockRecorder) JWTSecret() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "JWTSecret", reflect.TypeOf((*MockConfig)(nil).JWTSecret))
 }
 
+// RedpandaBrokers mocks base method.
+func (m *MockConfig) RedpandaBrokers() []string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedpandaBrokers")
+	ret0, _ := ret[0].([]string)
+	return ret0
+}
+
+// RedpandaBrokers indicates an expected call of RedpandaBrokers.
+func (mr *MockConfigMockRecorder) RedpandaBrokers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedpandaBrokers", reflect.TypeOf((*MockConfig)(nil).RedpandaBrokers))
+}
+
+// RedpandaTopic mocks base method.
+func (m *MockConfig) RedpandaTopic() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedpandaTopic")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// RedpandaTopic indicates an expected call of RedpandaTopic.
+func (mr *MockConfigMockRecorder) RedpandaTopic() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedpandaTopic", reflect.TypeOf((*MockConfig)(nil).RedpandaTopic))
+}
+
+// RedpandaUsersTopic mocks base method.
+func (m *MockConfig) RedpandaUsersTopic() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedpandaUsersTopic")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// RedpandaUsersTopic indicates an expected call of RedpandaUsersTopic.
+func (mr *MockConfigMockRecorder) RedpandaUsersTopic() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedpandaUsersTopic", reflect.TypeOf((*MockConfig)(nil).RedpandaUsersTopic))
+}
+
+// RedpandaSnapshotTopic mocks base method.
+func (m *MockConfig) RedpandaSnapshotTopic() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RedpandaSnapshotTopic")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// RedpandaSnapshotTopic indicates an expected call of RedpandaSnapshotTopic.
+func (mr *MockConfigMockRecorder) RedpandaSnapshotTopic() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RedpandaSnapshotTopic", reflect.TypeOf((*MockConfig)(nil).RedpandaSnapshotTopic))
+}
+
 // ServerPort mocks base method.
 func (m *MockConfig) ServerPort() string {
 	m.ctrl.T.Helper()
