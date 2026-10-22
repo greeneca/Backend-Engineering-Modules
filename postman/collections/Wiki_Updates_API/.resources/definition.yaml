@@ -1,0 +1,13 @@
+$kind: collection
+description: |-
+  API for the Wiki Updates service. Tracks Wikipedia recent changes, manages users, and exposes statistics.
+
+  **Base URL:** `http://localhost:80`
+
+  ## Authentication
+
+  Protected endpoints require a Bearer JWT token in the `Authorization` header.  
+  Obtain a token via `POST /login`.
+variables:
+  base_url: http://localhost:80
+  token: ""

@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get Stats
+order: 3000
+method: GET
+url: '{{base_url}}/stats'
+headers:
+  - key: Authorization
+    value: '{{token}}'
+    description: JWT token from the /login endpoint
