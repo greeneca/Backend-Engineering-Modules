@@ -21,12 +21,24 @@ func DataController(config configuration.Config, wiki_chan chan models.Message, 
 	dataSource.Initialize(config)
 	monitorChannels(wiki_chan, server_chan, dataSource)
 }
+
+func RunConsumer(config configuration.Config, server_chan chan models.Message) {
+	dataSource := getDataSource(config)
+	dataSource.Initialize(config)
+	for msg := range server_chan {
+		handleServerMessage(msg, dataSource)
+	}
+}
 func getDataSource(config configuration.Config) DataSource {
 	var dataSource DataSource
-	if config.DataStorage() == "cassandra" {
+	switch config.DataStorage() {
+	case "cassandra":
 		fmt.Println("Using Cassandra as data source")
 		dataSource = &Cassandra{}
-	} else {
+	case "redpanda":
+		fmt.Println("Using Redpanda as data source")
+		dataSource = &Redpanda{}
+	default:
 		// Fallback to in-memory or other data source
 		fmt.Println("Using In-Memory as data source")
 		dataSource = &InMemory{}
@@ -44,37 +56,7 @@ func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Mess
 	for {
 		select {
 		case msg := <-server_chan:
-			switch msg.Type {
-			case "get_stats":
-				stats, err := dataSource.GetStatistics()
-				if err != nil {
-					fmt.Println("Error getting initial statistics:", err)
-					stats = &models.Statistics{}
-				}
-				reply(msg, models.Message{
-					Type:       "stats_response",
-					Statistics: stats,
-				})
-			case "save_user":
-				err := dataSource.SaveUser(&msg.User)
-				reply(msg, models.Message{
-					Type:  "save_user_response",
-					Error: err,
-				})
-			case "get_user":
-				user, err := dataSource.GetUserByEmail(msg.User.Email)
-				if err != nil {
-					reply(msg, models.Message{
-						Type:  "get_user_response",
-						Error: err,
-					})
-				} else {
-					reply(msg, models.Message{
-						Type: "get_user_response",
-						User: *user,
-					})
-				}
-			}
+			handleServerMessage(msg, dataSource)
 		case msg := <-wiki_chan:
 			if msg.Type == "save_data" {
 				err := dataSource.SaveUpdate(msg.Update)
@@ -82,6 +64,40 @@ func monitorChannels(wiki_chan chan models.Message, server_chan chan models.Mess
 					fmt.Println("Error saving update:", err)
 				}
 			}
+		}
+	}
+}
+
+func handleServerMessage(msg models.Message, dataSource DataSource) {
+	switch msg.Type {
+	case "get_stats":
+		stats, err := dataSource.GetStatistics()
+		if err != nil {
+			fmt.Println("Error getting initial statistics:", err)
+			stats = &models.Statistics{}
+		}
+		reply(msg, models.Message{
+			Type:       "stats_response",
+			Statistics: stats,
+		})
+	case "save_user":
+		err := dataSource.SaveUser(&msg.User)
+		reply(msg, models.Message{
+			Type:  "save_user_response",
+			Error: err,
+		})
+	case "get_user":
+		user, err := dataSource.GetUserByEmail(msg.User.Email)
+		if err != nil {
+			reply(msg, models.Message{
+				Type:  "get_user_response",
+				Error: err,
+			})
+		} else {
+			reply(msg, models.Message{
+				Type: "get_user_response",
+				User: *user,
+			})
 		}
 	}
 }

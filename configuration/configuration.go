@@ -16,18 +16,24 @@ type Config interface {
 	ClusterHosts() []string
 	ClusterKeyspace() string
 	JWTSecret() string
+	RedpandaBrokers() []string
+	RedpandaTopic() string
+	RedpandaUsersTopic() string
+	RedpandaSnapshotTopic() string
 	Debug() bool
 }
 
 type Configuration struct {
 	serverPort, wikiAPIURL, userAgent, dataStorage, clusterKeyspace, jwtSecret string
-	clusterHosts []string
-	debug bool
+	redpandaTopic, redpandaUsersTopic, redpandaSnapshotTopic                   string
+	clusterHosts, redpandaBrokers                                              []string
+	debug                                                                      bool
 }
 type internalConfig struct {
 	ServerPort, WikiAPIURL, UserAgent, DataStorage, ClusterKeyspace, JWTSecret string
-	ClusterHosts []string
-	Debug bool
+	RedpandaTopic, RedpandaUsersTopic, RedpandaSnapshotTopic                   string
+	ClusterHosts, RedpandaBrokers                                              []string
+	Debug                                                                      bool
 }
 
 func defaultConfig() Configuration {
@@ -35,10 +41,14 @@ func defaultConfig() Configuration {
 		serverPort: "7000",
 		wikiAPIURL: "https://stream.wikimedia.org/v2/stream/recentchange",
 		userAgent:  "WikiUpdatesBot/0.0 (charles.greene@redspace.com) go/1.24.5",
-		dataStorage:    "memory", // or "cassandra"
+		dataStorage:    "memory", // "memory", "cassandra", or "redpanda"
 		clusterHosts: []string{"database"},
 		clusterKeyspace: "wiki_updates",
 		jwtSecret: "",
+		redpandaBrokers:        []string{"redpanda-0:9092"},
+		redpandaTopic:          "wiki.updates",
+		redpandaUsersTopic:     "wiki.users",
+		redpandaSnapshotTopic:  "wiki.stats.snapshot",
 		debug: false,
 	}
 	return config
@@ -65,6 +75,18 @@ func (c Configuration) ClusterKeyspace() string {
 }
 func (c Configuration) JWTSecret() string {
 	return c.jwtSecret
+}
+func (c Configuration) RedpandaBrokers() []string {
+	return c.redpandaBrokers
+}
+func (c Configuration) RedpandaTopic() string {
+	return c.redpandaTopic
+}
+func (c Configuration) RedpandaUsersTopic() string {
+	return c.redpandaUsersTopic
+}
+func (c Configuration) RedpandaSnapshotTopic() string {
+	return c.redpandaSnapshotTopic
 }
 func (c Configuration) Debug() bool {
 	return c.debug
@@ -131,7 +153,8 @@ func updateConfigWithInternalConfig(config *Configuration, internalConfig intern
 		config.userAgent = internalConfig.UserAgent
 	}
 	if internalConfig.DataStorage != "" {
-		if internalConfig.DataStorage == "cassandra" || internalConfig.DataStorage == "memory" {
+		switch internalConfig.DataStorage {
+		case "cassandra", "memory", "redpanda":
 			config.dataStorage = internalConfig.DataStorage
 		}
 	}
@@ -143,6 +166,18 @@ func updateConfigWithInternalConfig(config *Configuration, internalConfig intern
 	}
 	if internalConfig.JWTSecret != "" {
 		config.jwtSecret = internalConfig.JWTSecret
+	}
+	if len(internalConfig.RedpandaBrokers) > 0 {
+		config.redpandaBrokers = internalConfig.RedpandaBrokers
+	}
+	if internalConfig.RedpandaTopic != "" {
+		config.redpandaTopic = internalConfig.RedpandaTopic
+	}
+	if internalConfig.RedpandaUsersTopic != "" {
+		config.redpandaUsersTopic = internalConfig.RedpandaUsersTopic
+	}
+	if internalConfig.RedpandaSnapshotTopic != "" {
+		config.redpandaSnapshotTopic = internalConfig.RedpandaSnapshotTopic
 	}
 	if internalConfig.Debug {
 		config.debug = internalConfig.Debug
