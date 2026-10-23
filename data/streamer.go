@@ -3,12 +3,17 @@ package data
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 	"wiki_updates/configuration"
 
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+// snapshotMaxBytes is the largest snapshot record (and topic max.message.bytes)
+// allowed. The snapshot holds every distinct URI and user, so it grows over time.
+const snapshotMaxBytes = 64 * 1024 * 1024
 
 // StreamRecord is a simplified representation of a consumed record to allow the
 // streamer to be mocked in tests without exposing franz-go types.
@@ -54,6 +59,10 @@ func NewConsumerStreamer(config configuration.Config, updatesStartOffset int64) 
 	}
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(config.RedpandaBrokers()...),
+		kgo.ProducerBatchMaxBytes(snapshotMaxBytes),
+		kgo.FetchMaxBytes(snapshotMaxBytes),
+		kgo.FetchMaxPartitionBytes(snapshotMaxBytes),
+		kgo.MaxBufferedBytes(2*snapshotMaxBytes),
 		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
 			config.RedpandaTopic():      {0: updatesOffset},
 			config.RedpandaUsersTopic(): {0: kgo.NewOffset().AtStart()},
@@ -83,8 +92,23 @@ func ensureTopics(client *kgo.Client, config configuration.Config) error {
 	if _, err := adm.CreateTopics(ctx, 1, 1, compacted, config.RedpandaUsersTopic()); err != nil {
 		return err
 	}
-	if _, err := adm.CreateTopics(ctx, 1, 1, compacted, config.RedpandaSnapshotTopic()); err != nil {
+	maxBytes := strconv.Itoa(snapshotMaxBytes)
+	snapshotConfigs := map[string]*string{"cleanup.policy": &compact, "max.message.bytes": &maxBytes}
+	if _, err := adm.CreateTopics(ctx, 1, 1, snapshotConfigs, config.RedpandaSnapshotTopic()); err != nil {
 		return err
+	}
+	// CreateTopics does not change a topic that already exists, so also set the
+	// size limit explicitly. This fixes snapshot topics created with the default.
+	altered, err := adm.AlterTopicConfigs(ctx, []kadm.AlterConfig{
+		{Op: kadm.SetConfig, Name: "max.message.bytes", Value: &maxBytes},
+	}, config.RedpandaSnapshotTopic())
+	if err != nil {
+		return err
+	}
+	for _, result := range altered {
+		if result.Err != nil {
+			return result.Err
+		}
 	}
 	return nil
 }
@@ -96,6 +120,8 @@ func ensureTopics(client *kgo.Client, config configuration.Config) error {
 func ReadLatestSnapshot(config configuration.Config) ([]byte, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(config.RedpandaBrokers()...),
+		kgo.FetchMaxBytes(snapshotMaxBytes),
+		kgo.FetchMaxPartitionBytes(snapshotMaxBytes),
 		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
 			config.RedpandaSnapshotTopic(): {0: kgo.NewOffset().AtStart()},
 		}),
