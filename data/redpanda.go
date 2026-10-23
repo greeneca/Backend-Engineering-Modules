@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -25,11 +24,11 @@ const (
 
 // statsSnapshot is the serializable representation of the state of the consumed data.
 type statsSnapshot struct {
-	Messages int      `json:"messages"`
-	Urls     []string `json:"urls"`
-	Bots     []string `json:"bots"`
-	NonBots  []string `json:"non_bots"`
-	Offset   int64    `json:"offset"`
+	Messages int
+	Urls     []string
+	Bots     []string
+	NonBots  []string
+	Offset   int64
 }
 
 type Redpanda struct {
@@ -64,8 +63,8 @@ func (r *Redpanda) Initialize(config configuration.Config) {
 	if raw, err := readLatestSnapshot(config); err != nil {
 		fmt.Println("Error reading snapshot:", err)
 	} else if raw != nil {
-		var snapshot statsSnapshot
-		if err := json.Unmarshal(raw, &snapshot); err != nil {
+		snapshot, err := decodeSnapshot(raw)
+		if err != nil {
 			fmt.Println("Error decoding snapshot:", err)
 		} else {
 			r.restoreSnapshot(snapshot)
@@ -89,7 +88,7 @@ func (r *Redpanda) Initialize(config configuration.Config) {
 // SaveUpdate publishes the update to the updates topic keyed by URI. It should be
 // unused in the regular redpand build format. It remains here so the monolith mode also works.
 func (r *Redpanda) SaveUpdate(update models.Update) error {
-	value, err := json.Marshal(update)
+	value, err := encodeUpdate(update)
 	if err != nil {
 		return err
 	}
@@ -115,15 +114,15 @@ func (r *Redpanda) consume() {
 func (r *Redpanda) apply(record StreamRecord) {
 	switch record.Topic {
 	case r.updatesTopic:
-		var update models.Update
-		if err := json.Unmarshal(record.Value, &update); err != nil {
+		update, err := decodeUpdate(record.Value)
+		if err != nil {
 			fmt.Println("Error decoding update record:", err)
 			return
 		}
 		r.applyUpdate(update, record.Offset)
 	case r.usersTopic:
-		var user models.User
-		if err := json.Unmarshal(record.Value, &user); err != nil {
+		user, err := decodeUser(record.Value)
+		if err != nil {
 			fmt.Println("Error decoding user record:", err)
 			return
 		}
@@ -171,7 +170,7 @@ func (r *Redpanda) SaveUser(user *models.User) error {
 		return fmt.Errorf("user with email %s already exists", user.Email)
 	}
 
-	value, err := json.Marshal(user)
+	value, err := encodeUser(*user)
 	if err != nil {
 		return err
 	}
@@ -209,7 +208,7 @@ func (r *Redpanda) snapshotLoop() {
 // writeSnapshot serializes and publishes the current view to the snapshot topic.
 func (r *Redpanda) writeSnapshot() error {
 	snapshot := r.buildSnapshot()
-	value, err := json.Marshal(snapshot)
+	value, err := encodeSnapshot(snapshot)
 	if err != nil {
 		return err
 	}
@@ -276,7 +275,7 @@ func NewProducer(config configuration.Config) *Producer {
 // Produce publishes a single update keyed by URI. Errors are logged rather than
 // returned so a single bad record never tears down the ingest loop.
 func (p *Producer) Produce(update models.Update) {
-	value, err := json.Marshal(update)
+	value, err := encodeUpdate(update)
 	if err != nil {
 		fmt.Println("Error encoding update:", err)
 		return
