@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"encoding/json"
 	"sync"
 	"testing"
 	"wiki_updates/models"
@@ -63,8 +62,8 @@ func Test_Redpanda_SaveUpdate_ProducesToUpdatesTopic(t *testing.T) {
 	assert.Equal(t, "wiki.updates", record.Topic)
 	assert.Equal(t, update.Uri, string(record.Key))
 
-	var decoded models.Update
-	assert.NoError(t, json.Unmarshal(record.Value, &decoded))
+	decoded, err := decodeUpdate(record.Value)
+	assert.NoError(t, err)
 	assert.Equal(t, update, decoded)
 }
 
@@ -151,7 +150,7 @@ func Test_Redpanda_GetUserByEmail_NotFound(t *testing.T) {
 func Test_Redpanda_Apply_UserRecordMaterializesUser(t *testing.T) {
 	db := newTestRedpanda(&fakeStreamer{})
 	user := models.User{Email: "streamed@user.com", PasswordHash: "hashed"}
-	value, _ := json.Marshal(user)
+	value, _ := encodeUser(user)
 
 	db.apply(StreamRecord{Topic: "wiki.users", Key: []byte(user.Email), Value: value})
 
@@ -163,7 +162,7 @@ func Test_Redpanda_Apply_UserRecordMaterializesUser(t *testing.T) {
 func Test_Redpanda_Apply_TracksUpdatesOffset(t *testing.T) {
 	db := newTestRedpanda(&fakeStreamer{})
 	update := models.Update{Uri: "uri-a", User: "bot-1", Bot: true}
-	value, _ := json.Marshal(update)
+	value, _ := encodeUpdate(update)
 
 	db.apply(StreamRecord{Topic: "wiki.updates", Offset: 41, Value: value})
 
@@ -209,8 +208,8 @@ func Test_Redpanda_WriteSnapshot_ProducesToSnapshotTopic(t *testing.T) {
 	assert.Equal(t, "wiki.stats.snapshot", record.Topic)
 	assert.Equal(t, snapshotKey, string(record.Key))
 
-	var decoded statsSnapshot
-	assert.NoError(t, json.Unmarshal(record.Value, &decoded))
+	decoded, err := decodeSnapshot(record.Value)
+	assert.NoError(t, err)
 	assert.Equal(t, 1, decoded.Messages)
 	assert.Equal(t, int64(8), decoded.Offset)
 	assert.ElementsMatch(t, []string{"uri-a"}, decoded.Urls)
@@ -248,7 +247,7 @@ func Test_Redpanda_Recover_ThenResumeWithoutDoubleCounting(t *testing.T) {
 
 func record(t *testing.T, topic string, offset int64, update models.Update) StreamRecord {
 	t.Helper()
-	value, err := json.Marshal(update)
+	value, err := encodeUpdate(update)
 	assert.NoError(t, err)
 	return StreamRecord{Topic: topic, Offset: offset, Key: []byte(update.Uri), Value: value}
 }

@@ -65,6 +65,21 @@ services:
       CONSOLE_CONFIG_FILE: |
         kafka:
           brokers: ["redpanda-0:9092"]
+          protobuf:
+            enabled: true
+            mappings:
+              - topicName: wiki.updates
+                valueProtoType: wiki_updates.Update
+              - topicName: wiki.users
+                valueProtoType: wiki_updates.User
+              - topicName: wiki.stats.snapshot
+                valueProtoType: wiki_updates.StatsSnapshot
+            fileSystem:
+              enabled: true
+              paths: ["/etc/console/proto"]
+              refreshInterval: 5m
+    volumes:
+      - ./proto:/etc/console/proto:ro
     ports:
       - "8080:8080"
     depends_on:
